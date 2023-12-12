@@ -14,7 +14,7 @@ start_day = 1
 end_day = 30
 start_month = 10
 end_month = 4
-start_year = 2021
+start_year = 2013
 end_year = 2023
 
 # Create Game Stats DataFrame
@@ -116,6 +116,7 @@ for year in range(start_year, end_year+1):
     season+=1
 
 print("Organizing Data")
+game_df['games'] = 1
 game_df['home_team'] = np.where(game_df['winner'] == 'Home', game_df['winning_team'], game_df['losing_team'])
 game_df['away_team'] = np.where(game_df['winner'] == 'Away', game_df['winning_team'], game_df['losing_team'])
 
@@ -156,6 +157,8 @@ cbb_stats_df = pd.concat([home_df, away_df])
 cbb_stats_df.sort_values(by=['season','date'], ascending=True, inplace=True)
 cbb_stats_df['game_counter'] = 1
 
+cbb_stats_df['total_team_games'] = cbb_stats_df.groupby(['season','team'])['games'].cumsum()
+cbb_stats_df['total_opp_games'] = cbb_stats_df.groupby(['season','opp'])['games'].cumsum()
 cbb_stats_df['total_team_points'] = cbb_stats_df.groupby(['season','team'])['team_points'].cumsum()
 cbb_stats_df['total_opp_points'] = cbb_stats_df.groupby(['season','opp'])['opp_points'].cumsum()
 cbb_stats_df['total_team_fg_att'] = cbb_stats_df.groupby(['season','team'])['team_field_goal_att'].cumsum()
