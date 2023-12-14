@@ -11,17 +11,17 @@ from sportsipy.ncaab.teams import Teams
 # Set Duration to Scrape Games
 
 start_day = 1
-end_day = 30
-start_month = 10
-end_month = 4
-start_year = 2013
+end_day = 2
+start_month = 12
+end_month = 12
+start_year = 2023
 end_year = 2023
 
 # Create Game Stats DataFrame
 print("Gathering Boxscore Data")
 game_datas = Boxscores(datetime(start_year, start_month, start_day), datetime(end_year, end_month, end_day))
 
-game_dict = {'season': [], 'date': [], 'location': [], 'winner': [], 'winning_team': [], 'losing_team': [], 'pace': [], 
+game_dict = {'season': [], 'date': [], 'winner': [], 'winning_team': [], 'losing_team': [], 'pace': [], 
              'away_rank': [], 'away_field_goals_made': [], 'away_field_goal_attempts': [], 'away_field_goal_pct': [], 'away_3pt_made': [], 'away_3pt_attempts': [],
              'away_3pt_pct': [], 'away_free_throws_made': [], 'away_free_throw_attempts': [], 'away_free_throw_pct': [], 'away_offensive_rebounds': [],
              'away_defensive_rebounds': [], 'away_total_rebounds': [], 'away_assists': [], 'away_steals': [], 'away_blocks': [], 'away_turnovers': [], 'away_fouls': [], 'away_points': [],
@@ -51,7 +51,6 @@ for day in game_datas.games:
 
         game_dict['season'].append(season)
         game_dict['date'].append(game_data.date)
-        game_dict['location'].append(game_data.location)
         game_dict['winner'].append(game_data.winner)
         game_dict['winning_team'].append(game_data.winning_name)
         game_dict['losing_team'].append(game_data.losing_name)
@@ -100,7 +99,7 @@ for day in game_datas.games:
 game_df = pd.DataFrame(game_dict)
 game_df['season'] = -1
 
-season = 0
+season = start_year
 fall = ['October', 'November', 'December']
 for year in range(start_year, end_year+1):
     for ent in range(len(game_df)):
@@ -191,7 +190,8 @@ cbb_stats_df['total_team_turnovers'] = cbb_stats_df.groupby(['season','team'])['
 cbb_stats_df['total_opp_turnovers'] = cbb_stats_df.groupby(['season','opp'])['opp_turnovers'].cumsum()
 cbb_stats_df['total_team_fouls'] = cbb_stats_df.groupby(['season','team'])['team_fouls'].cumsum()
 cbb_stats_df['total_opp_fouls'] = cbb_stats_df.groupby(['season','opp'])['opp_fouls'].cumsum()
-cbb_stats_df['total_pace'] = cbb_stats_df.groupby(['season','team'])['pace'].cumsum()/cbb_stats_df.groupby(['season','team'])['game_counter'].cumsum() * 100
+cbb_stats_df['total_team_pace'] = cbb_stats_df.groupby(['season','team'])['pace'].cumsum()/cbb_stats_df.groupby(['season','team'])['game_counter'].cumsum() * 100
+cbb_stats_df['total_opp_pace'] = cbb_stats_df.groupby(['season','opp'])['pace'].cumsum()/cbb_stats_df.groupby(['season','opp'])['game_counter'].cumsum() * 100
 
 cbb_stats_df.to_excel('cbb_raw_data.xlsx')
 
@@ -199,7 +199,6 @@ cbb_stats_df.to_excel('cbb_raw_data.xlsx')
 cbb_norm_df = pd.read_excel('cbb_raw_data.xlsx')
 cbb_norm_df.drop(columns=['Unnamed: 0'], inplace=True)
 
-cbb_norm_df['venue_code'] = cbb_norm_df['location'].astype("category").cat.codes
 cbb_norm_df['team_code'] = cbb_norm_df['team'].astype("category").cat.codes
 cbb_norm_df['opp_code'] = cbb_norm_df['opp'].astype("category").cat.codes
 cbb_norm_df['team_rank'] = cbb_norm_df['team_rank'].fillna(50)
@@ -238,11 +237,11 @@ cbb_norm_df['total_team_turnovers'] = cbb_norm_df['total_team_turnovers'] /cbb_n
 cbb_norm_df['total_opp_turnovers'] = cbb_norm_df['total_opp_turnovers']/cbb_norm_df['total_opp_turnovers'].max()
 cbb_norm_df['total_team_fouls'] = cbb_norm_df['total_team_fouls']/cbb_norm_df['total_team_fouls'].max()
 cbb_norm_df['total_opp_fouls'] = cbb_norm_df['total_opp_fouls']/cbb_norm_df['total_opp_fouls'].max()
-cbb_norm_df['venue_code'] = cbb_norm_df['venue_code']/cbb_norm_df['venue_code'].max()
 cbb_norm_df['team_code'] = cbb_norm_df['team_code']/cbb_norm_df['team_code'].max()
 cbb_norm_df['opp_code'] = cbb_norm_df['opp_code']/cbb_norm_df['opp_code'].max()
 cbb_norm_df['team_rank'] = cbb_norm_df['team_rank']/cbb_norm_df['team_rank'].max()
 cbb_norm_df['opp_rank'] = cbb_norm_df['opp_rank']/cbb_norm_df['opp_rank'].max()
-cbb_norm_df['total_pace'] = cbb_norm_df['total_pace']/cbb_norm_df['total_pace'].max()
+cbb_norm_df['total_team_pace'] = cbb_norm_df['total_team_pace']/cbb_norm_df['total_team_pace'].max()
+cbb_norm_df['total_opp_pace'] = cbb_norm_df['total_opp_pace']/cbb_norm_df['total_opp_pace'].max()
 
 cbb_norm_df.to_excel('cbb_norm_data.xlsx')
