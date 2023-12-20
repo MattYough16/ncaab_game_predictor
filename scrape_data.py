@@ -11,10 +11,10 @@ from sportsipy.ncaab.teams import Teams
 # Set Duration to Scrape Games
 
 start_day = 1
-end_day = 2
-start_month = 12
-end_month = 12
-start_year = 2023
+end_day = 30
+start_month = 10
+end_month = 4
+start_year = 2013
 end_year = 2023
 
 # Create Game Stats DataFrame

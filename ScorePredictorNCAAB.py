@@ -4,7 +4,7 @@ import json
 import http.client
 import time
 import numpy as np
-from datetime import datetime
+from datetime import datetime, date
 from sportsipy.ncaab.boxscore import Boxscores, Boxscore
 from sportsipy.ncaab.teams import Teams
 from sklearn.linear_model import LinearRegression
@@ -21,15 +21,14 @@ class ScorePredictorNCAAB:
 
     ###### Scrape Data Function ######
     def scrape_data(self, out_path):
-        # Set Duration to Scrape Games
+       # Set Duration to Scrape Games
 
         start_day = 1
         end_day = 30
         start_month = 10
         end_month = 4
-        start_year = 2021
-        date = date.today()
-        end_year = date.year
+        start_year = 2013
+        end_year = 2023
 
         # Create Game Stats DataFrame
         print("Gathering Boxscore Data")
@@ -113,7 +112,7 @@ class ScorePredictorNCAAB:
         game_df = pd.DataFrame(game_dict)
         game_df['season'] = -1
 
-        season = 0
+        season = start_year
         fall = ['October', 'November', 'December']
         for year in range(start_year, end_year+1):
             for ent in range(len(game_df)):
@@ -278,26 +277,23 @@ class ScorePredictorNCAAB:
 
         data_df = pd.read_excel(f"{file_path}/{file_name}", index_col=0)
         data_df = data_df.dropna(axis = 0).reset_index()
-        data_df = data_df[(data_df['season'] >= int(start_year)) & (data_df['season'] <= int(end_year))]
 
         # Define Metrics for Input Variables
-        X = data_df[['total_team_points', 'total_opp_points', 'total_team_fg_att', 'total_opp_fg_att', 'total_team_fg_made', 'total_opp_fg_made', 'total_team_fg_pct', 'total_opp_fg_pct', 
+        X = data_df[['total_team_games', 'total_opp_games', 'total_team_points', 'total_opp_points', 'total_team_fg_att', 'total_opp_fg_att', 'total_team_fg_made', 'total_opp_fg_made', 'total_team_fg_pct', 'total_opp_fg_pct', 
                         'total_team_3pt_att', 'total_opp_3pt_att', 'total_team_3pt_made', 'total_opp_3pt_made', 'total_team_3pt_pct', 'total_opp_3pt_pct', 'total_team_ft_att', 'total_opp_ft_att',
                         'total_team_ft_made', 'total_opp_ft_made', 'total_team_ft_pct', 'total_opp_ft_pct', 'total_team_rebounds', 'total_opp_rebounds', 'total_team_assists', 'total_opp_assists',
                         'total_team_steals', 'total_opp_steals', 'total_team_blocks', 'total_opp_blocks', 'total_team_turnovers', 'total_opp_turnovers', 'total_team_fouls', 'total_opp_fouls',
-                        'venue_code', 'team_code', 'opp_code', 'total_pace']]
+                        'total_team_pace', 'total_opp_pace', 'team_code', 'opp_code']]
         X = X.reset_index(drop=True)
 
         y_team = data_df['team_points']
 
-        # Home Linear Regression Model
+        # Linear Regression Model
         X_train, X_test, y_train, y_test = train_test_split(X, y_team, test_size = 0.20)
 
         regr = LinearRegression()
         regr.fit(X_train, y_train.values.ravel())
         print(regr.score(X_test, y_test))
-
-        # Away Linear Regression model
 
         # Save Models
         joblib.dump(regr, f"{model_path}/{model_file}")
@@ -311,7 +307,7 @@ class ScorePredictorNCAAB:
 ########################################################################################################################################
 
     ###### Predict Scores ######
-    def predict_scores(self, path, result_path, year):
+    def predict_scores(self, path, result_path):
 
         # File Names and Paths
         data_path = path
@@ -324,15 +320,13 @@ class ScorePredictorNCAAB:
         # Output Data Path
         out_path = result_path
 
-        # Get Current Season Stats
-        date = date.today()
-        year = date.year
+        date_ = date.today()
+        year = date_.year
 
         teams = Teams(year=year)
-
         stats_dict = {'team': [], 'games': [], 'pace': [], 'field_goals_made': [], 'field_goal_attempts': [], 'field_goal_pct': [], '3pt_made': [], '3pt_attempts': [],
-             '3pt_pct': [], 'free_throws_made': [], 'free_throw_attempts': [], 'free_throw_pct': [], 'offensive_rebounds': [],
-             'defensive_rebounds': [], 'total_rebounds': [], 'assists': [], 'steals': [], 'blocks': [], 'turnovers': [], 'fouls': [], 'points': []}
+                    '3pt_pct': [], 'free_throws_made': [], 'free_throw_attempts': [], 'free_throw_pct': [], 'offensive_rebounds': [],
+                    'defensive_rebounds': [], 'total_rebounds': [], 'assists': [], 'steals': [], 'blocks': [], 'turnovers': [], 'fouls': [], 'points': []}
         for team in teams:
             stats_dict['team'].append(team.name)
             stats_dict['games'].append(team.games_played)
@@ -359,9 +353,7 @@ class ScorePredictorNCAAB:
 
         stats_df = pd.DataFrame(stats_dict)
 
-        # Get Today's Games
         games = Boxscores(datetime.today())
-
         game_dict = {'date': [], 'away_team': [], 'away_rank': [], 'home_team': [], 'home_rank': []}
 
         cur_date = date.today()
@@ -377,11 +369,9 @@ class ScorePredictorNCAAB:
 
         game_df = pd.DataFrame(game_dict)
 
-        # Merge Stats and Schedules
         cbb_df = pd.merge(game_df, stats_df, left_on='away_team', right_on='team')
         cbb_df2 = pd.merge(cbb_df, stats_df, left_on='home_team', right_on='team')
 
-        # Rename Columns
         cbb_df2.drop(columns=['team_x', 'team_y'], inplace=True)
         cbb_df2.rename(columns={'games_x': 'away_games', 'pace_x': 'away_pace', 'field_goals_made_x': 'away_field_goals_made', 'field_goal_attempts_x': 'away_field_goal_attempts',
                                 'field_goal_pct_x': 'away_field_goal_pct', '3pt_made_x': 'away_3pt_made', '3pt_attempts_x': 'away_3pt_attempts',
@@ -395,11 +385,9 @@ class ScorePredictorNCAAB:
                                 'free_throw_pct_y': 'home_free_throw_pct', 'offensive_rebounds_y': 'home_offensive_rebounds', 'defensive_rebounds_y': 'home_defensive_rebounds',
                                 'total_rebounds_y': 'home_total_rebounds', 'assists_y': 'home_assists', 'steals_y': 'home_steals', 'blocks_y': 'home_blocks', 'turnovers_y': 'home_turnovers',
                                 'fouls_y': 'home_fouls', 'points_y': 'home_points'}, inplace=True)
-        
-        cbb_df2.to_excel(f'{out_path}/cbb_predict_raw.xlsx')
+        cbb_df2.to_excel(f'{data_path}/cbb_predict_raw.xlsx')
 
-        # Split into Home and Away DataFrames
-        home_df = pd.read_excel(f'{out_path}/cbb_predict_raw.xlsx')
+        home_df = pd.read_excel(f'{data_path}/cbb_predict_raw.xlsx')
         home_df.drop(columns=['Unnamed: 0'], inplace=True)
         home_df.rename(columns={'home_team': 'team', 'away_team': 'opp','home_points': 'team_points', 'away_points': 'opp_points', 'home_rank': 'team_rank', 'away_rank': 'opp_rank', 'home_field_goal_attempts': 'team_field_goal_att',
                                 'away_field_goal_attempts': 'opp_field_goal_att', 'home_field_goals_made': 'team_field_goal_made','away_field_goals_made': 'opp_field_goal_made', 
@@ -412,7 +400,7 @@ class ScorePredictorNCAAB:
                                 'home_blocks': 'team_blocks', 'away_blocks': 'opp_blocks', 'home_turnovers': 'team_turnovers', 'away_turnovers': 'opp_turnovers', 'home_fouls': 'team_fouls',
                                 'away_fouls': 'opp_fouls', 'home_games': 'team_games', 'away_games': 'opp_games', 'home_pace': 'team_pace', 'away_pace': 'opp_pace'}, inplace=True)
 
-        away_df = pd.read_excel(f'{out_path}/cbb_predict_raw.xlsx')
+        away_df = pd.read_excel(f'{data_path}/cbb_predict_raw.xlsx')
         away_df.drop(columns=['Unnamed: 0'], inplace=True)
         away_df.rename(columns={'away_team': 'team', 'home_team': 'opp','away_points': 'team_points', 'home_points': 'opp_points', 'away_rank': 'team_rank', 'home_rank': 'opp_rank', 'away_field_goal_attempts': 'team_field_goal_att',
                                 'home_field_goal_attempts': 'opp_field_goal_att', 'away_field_goals_made': 'team_field_goal_made','home_field_goals_made': 'opp_field_goal_made', 
@@ -424,16 +412,17 @@ class ScorePredictorNCAAB:
                                 'away_defensive_rebounds': 'team_def_rebounds', 'home_defensive_rebounds': 'opp_def_rebounds','away_assists':'team_assists', 'home_assists': 'opp_assists', 'away_steals': 'team_steals', 'home_steals': 'opp_steals',
                                 'away_blocks': 'team_blocks', 'home_blocks': 'opp_blocks', 'away_turnovers': 'team_turnovers', 'home_turnovers': 'opp_turnovers', 'away_fouls': 'team_fouls',
                                 'home_fouls': 'opp_fouls', 'away_games': 'team_games', 'home_games': 'opp_games', 'away_pace': 'team_pace', 'home_pace': 'opp_pace'}, inplace=True)
-        
+
         # Combine Home and Away DataFrames
         cbb_stats_df = pd.concat([home_df, away_df])
 
-        # Organize Data for Predictinos
         cbb_stats_df['team_code'] = cbb_stats_df['team'].astype("category").cat.codes
         cbb_stats_df['opp_code'] = cbb_stats_df['opp'].astype("category").cat.codes
         cbb_stats_df['team_rank'] = cbb_stats_df['team_rank'].fillna(50)
         cbb_stats_df['opp_rank'] = cbb_stats_df['opp_rank'].fillna(50)
 
+        cbb_stats_df['total_team_games'] = cbb_stats_df['team_games']
+        cbb_stats_df['total_opp_games'] = cbb_stats_df['opp_games']
         cbb_stats_df['total_team_points'] = cbb_stats_df['team_points']/cbb_stats_df['team_points'].max()
         cbb_stats_df['total_opp_points'] = cbb_stats_df['opp_points']/cbb_stats_df['opp_points'].max()
         cbb_stats_df['total_team_fg_att'] = cbb_stats_df['team_field_goal_att']/cbb_stats_df['team_field_goal_att'].max()
@@ -473,43 +462,35 @@ class ScorePredictorNCAAB:
         cbb_stats_df['total_team_pace'] = cbb_stats_df['team_pace']/cbb_stats_df['team_pace'].max()
         cbb_stats_df['total_opp_pace'] = cbb_stats_df['opp_pace']/cbb_stats_df['opp_pace'].max()
 
-        # Make Predicions
-        # Define Metrics for Input Variables
-        X = cbb_stats_df[['total_team_points', 'total_opp_points', 'total_team_rank', 'total_opp_rank',  'total_team_field_goal_att',
-                                'total_opp_field_goal_att',  'total_team_field_goal_made','total_opp_field_goal_made', 
-                                'total_team_field_goal_pct', 'total_opp_field_goal_pct','total_team_3pt_att','total_opp_3pt_att', 
-                                'total_team_3pt_made','total_opp_3pt_made', 'total_team_3pt_pct','total_opp_3pt_pct',
-                                'total_team_free_throw_att','total_opp_free_throw_att',  'total_team_free_throw_made',
-                                'total_opp_free_throw_made','total_team_free_throw_pct','total_opp_free_throw_pct',  'total_team_rebounds',
-                                'total_opp_rebounds',  'total_team_off_rebounds', 'total_opp_off_rebounds',
-                                'total_team_def_rebounds', 'total_opp_def_rebounds','total_team_assists',  'total_opp_assists','total_team_steals', 'total_opp_steals',
-                                'total_team_blocks',  'total_opp_blocks',  'total_team_turnovers', 'total_opp_turnovers', 'total_team_fouls',
-                                'total_opp_fouls',  'total_team_games', 'total_opp_games',  'total_team_pace',  'total_opp_pace']]
-        X = X.reset_index(drop=True)
-
         # Load Models
         regr = joblib.load(f"{model_path}/{model_file}")
+
+        # Define Metrics for Input Variables
+        X = cbb_stats_df[['total_team_games', 'total_opp_games', 'total_team_points', 'total_opp_points', 'total_team_fg_att', 'total_opp_fg_att', 'total_team_fg_made', 'total_opp_fg_made', 'total_team_fg_pct', 'total_opp_fg_pct', 
+                        'total_team_3pt_att', 'total_opp_3pt_att', 'total_team_3pt_made', 'total_opp_3pt_made', 'total_team_3pt_pct', 'total_opp_3pt_pct', 'total_team_ft_att', 'total_opp_ft_att',
+                        'total_team_ft_made', 'total_opp_ft_made', 'total_team_ft_pct', 'total_opp_ft_pct', 'total_team_rebounds', 'total_opp_rebounds', 'total_team_assists', 'total_opp_assists',
+                        'total_team_steals', 'total_opp_steals', 'total_team_blocks', 'total_opp_blocks', 'total_team_turnovers', 'total_opp_turnovers', 'total_team_fouls', 'total_opp_fouls',
+                        'total_team_pace', 'total_opp_pace', 'team_code', 'opp_code']]
+        X = X.reset_index(drop=True)
+
         # Run Model
         y_pred = regr.predict(X)
 
         # Create Predictions DataFrame
-        predictions = {'Home_Team' : cbb_stats_df['team'].iloc[0:len(cbb_stats_df)/2], 'home_points': np.round(y_pred)[0: len(y_pred)/2]}
+        predictions = {'Home_Team' : cbb_stats_df['team'].iloc[0:int(len(cbb_stats_df)/2)], 'home_points': np.round(y_pred)[0: int(len(y_pred)/2)]}
         predictions_df = pd.DataFrame(data=predictions)
-        predictions_df['Away_Team'] = cbb_stats_df['team'].iloc[len(cbb_stats_df)/2:]
-        predictions_df['away_points'] = np.round(y_pred)[len(y_pred)/2:]
+        predictions_df['Away_Team'] = cbb_stats_df['team'].iloc[int(len(cbb_stats_df)/2):]
+        predictions_df['away_points'] = np.round(y_pred)[int(len(y_pred)/2):]
 
         # Save DFs to Excel
-        predictions_df.to_excel(f"{out_path}/{date} NCAAB Score Predictions.xlsx")
-
+        predictions_df.to_excel(f"{out_path}/NCAAB {date_.year}-{date_.month}-{date_.day} Score Predictions.xlsx")
 ########################################################################################################################################
 ########################################################################################################################################
 ########################################################################################################################################
 ########################################################################################################################################
 
     ###### Update Model ######
-    def update_model(self, path, year, current_week):
-    
-        # Read Old Dataset
+    def update_model(self, path):
         cbb_norm_path = path
         cbb_norm_name = "cbb_norm_data.xlsx"
 
@@ -523,7 +504,7 @@ class ScorePredictorNCAAB:
 
         if season_week in old_full_df['season_week'].values:
             return f"Already input Season {year}, Week {current_week} Data"
-        
+
         if bPO:
             return f"Cannot Update Model with Playoff Data"
 
@@ -536,8 +517,8 @@ class ScorePredictorNCAAB:
         teams = Teams(year=year)
 
         stats_dict = {'team': [], 'games': [], 'pace': [], 'field_goals_made': [], 'field_goal_attempts': [], 'field_goal_pct': [], '3pt_made': [], '3pt_attempts': [],
-             '3pt_pct': [], 'free_throws_made': [], 'free_throw_attempts': [], 'free_throw_pct': [], 'offensive_rebounds': [],
-             'defensive_rebounds': [], 'total_rebounds': [], 'assists': [], 'steals': [], 'blocks': [], 'turnovers': [], 'fouls': [], 'points': []}
+                '3pt_pct': [], 'free_throws_made': [], 'free_throw_attempts': [], 'free_throw_pct': [], 'offensive_rebounds': [],
+                'defensive_rebounds': [], 'total_rebounds': [], 'assists': [], 'steals': [], 'blocks': [], 'turnovers': [], 'fouls': [], 'points': []}
         for team in teams:
             stats_dict['team'].append(team.name)
             stats_dict['games'].append(team.games_played)
@@ -631,6 +612,11 @@ class ScorePredictorNCAAB:
         cbb_stats_df['team_rank'] = cbb_stats_df['team_rank'].fillna(50)
         cbb_stats_df['opp_rank'] = cbb_stats_df['opp_rank'].fillna(50)
 
+        # Combine Old Data and New Data
+        cbb_stats_df = pd.concat([old_training_df, cbb_stats_df])
+
+        cbb_stats_df['total_team_games'] = cbb_stats_df['team_games']
+        cbb_stats_df['total_opp_games'] = cbb_stats_df['opp_games']
         cbb_stats_df['total_team_points'] = cbb_stats_df['team_points']/cbb_stats_df['team_points'].max()
         cbb_stats_df['total_opp_points'] = cbb_stats_df['opp_points']/cbb_stats_df['opp_points'].max()
         cbb_stats_df['total_team_fg_att'] = cbb_stats_df['team_field_goal_att']/cbb_stats_df['team_field_goal_att'].max()
@@ -670,9 +656,9 @@ class ScorePredictorNCAAB:
         cbb_stats_df['total_team_pace'] = cbb_stats_df['team_pace']/cbb_stats_df['team_pace'].max()
         cbb_stats_df['total_opp_pace'] = cbb_stats_df['opp_pace']/cbb_stats_df['opp_pace'].max()
 
-        # Combine Old Data and New Data
-        cbb_stats_df = pd.concat([old_training_df, cbb_stats_df])
         cbb_stats_df.to_excel('cbb_norm_data.xlsx')
+
+
 
         return "Update Complete"
     
@@ -727,16 +713,17 @@ class ScorePredictorNCAAB:
         model_path = path
         model_file = "CBB_Score_Model.pkl"
 
-        data_df = pd.read_excel(f"{path}/{'cbb_norm_data.data.xlsx'}", index_col=0)
+        data_df = pd.read_excel(f"{path}/{'cbb_norm_data.xlsx'}", index_col=0)
         data_df = data_df.dropna(axis = 0).reset_index()
-        data_df = data_df[data_df['season'] >= start_year & data_df['season'] <= end_year]
+        data_df = data_df[data_df['season'] >= int(start_year)]
+        data_df = data_df[data_df['season'] <= int(end_year)]
 
-        # Define Metrics for Input Variables
-        X = data_df[['total_team_games', 'total_opp_games' 'total_team_points', 'total_opp_points', 'total_team_fg_att', 'total_opp_fg_att', 'total_team_fg_made', 'total_opp_fg_made', 'total_team_fg_pct', 'total_opp_fg_pct', 
+       # Define Metrics for Input Variables
+        X = data_df[['total_team_games', 'total_opp_games', 'total_team_points', 'total_opp_points', 'total_team_fg_att', 'total_opp_fg_att', 'total_team_fg_made', 'total_opp_fg_made', 'total_team_fg_pct', 'total_opp_fg_pct', 
                         'total_team_3pt_att', 'total_opp_3pt_att', 'total_team_3pt_made', 'total_opp_3pt_made', 'total_team_3pt_pct', 'total_opp_3pt_pct', 'total_team_ft_att', 'total_opp_ft_att',
                         'total_team_ft_made', 'total_opp_ft_made', 'total_team_ft_pct', 'total_opp_ft_pct', 'total_team_rebounds', 'total_opp_rebounds', 'total_team_assists', 'total_opp_assists',
                         'total_team_steals', 'total_opp_steals', 'total_team_blocks', 'total_opp_blocks', 'total_team_turnovers', 'total_opp_turnovers', 'total_team_fouls', 'total_opp_fouls',
-                        'venue_code', 'team_code', 'opp_code']]
+                        'total_team_pace', 'total_opp_pace', 'team_code', 'opp_code']]
         X = X.reset_index(drop=True)
 
         y_team = data_df['team_points']
@@ -752,4 +739,4 @@ class ScorePredictorNCAAB:
         joblib.dump(regr, f"{model_path}/{model_file}")
 
         # Return Model Results
-        return str(round(regr.score(X, y_team),2))
+        return str(round(regr.score(X_test, y_test),2))

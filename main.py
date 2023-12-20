@@ -19,12 +19,9 @@ def make_predictions():
     # Get GUI Inputs
     data_path = in_path.get()
     prediction_path = out_path.get()
-    season = int(year.get())
-    current_week = int(week.get())
-    playoff = bPO.get()
 
     # Make Predictions
-    predictor.predict_scores(data_path, prediction_path, season, current_week, playoff)
+    predictor.predict_scores(data_path, prediction_path)
     status.delete("1.0", "end")
     status.insert(INSERT, "Predictions Complete")
 
@@ -35,10 +32,9 @@ def update_model():
     data_path = in_path.get()
     season = int(year.get())
     current_week = int(week.get())
-    playoff = bPO.get()
 
     # Update Model with Current Weeks Data
-    predictor_status = predictor.update_model(data_path, season, current_week, playoff)
+    predictor_status = predictor.update_model(data_path)
     status.delete("1.0", "end")
     status.insert(INSERT, predictor_status)
 
@@ -51,7 +47,7 @@ def reset_model():
 
     model_fit = predictor.retrain_model(model_path, start_year, end_year)
 
-    out_string = f"Home Score Fit: {model_fit}"
+    out_string = f"Score Fit: {model_fit}"
 
     status.delete("1.0", "end")
     status.insert(INSERT, out_string)
@@ -97,27 +93,6 @@ spath.grid(column =1, row =3)
 Out_btn = Button(root, bg = 'red', width = 20, text = "Prediction Output Directory" ,
              activebackground = 'white', fg = "black", command=get_out_path)
 Out_btn.grid(column=2, row=3)
-
-#############################################################################################################
-# Adding a Label for Year
-year_label = Label(root, text = "Season (Year)")
-year_label.grid(column =0, row =0)
-
-# Adding a Text Entry Box for Year
-year = StringVar()
-year = Entry(root, width=30, textvariable=year)
-year.grid(column =1, row =0)
-
-#############################################################################################################
-
-# Adding a Label for Week
-week_label = Label(root, text = "Week of Season")
-week_label.grid(column =0, row =1)
-
-# Adding a Text Entry Box for Week
-week = StringVar()
-week = Entry(root, width=30, textvariable=week)
-week.grid(column =1, row =1)
 
 #############################################################################################################
 

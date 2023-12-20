@@ -16,11 +16,11 @@ data_df = pd.read_excel(f"{file_path}/{file_name}", index_col=0)
 data_df = data_df.dropna(axis = 0).reset_index()
 
 # Define Metrics for Input Variables
-X = data_df[['total_team_games', 'total_opp_games' 'total_team_points', 'total_opp_points', 'total_team_fg_att', 'total_opp_fg_att', 'total_team_fg_made', 'total_opp_fg_made', 'total_team_fg_pct', 'total_opp_fg_pct', 
+X = data_df[['total_team_games', 'total_opp_games', 'total_team_points', 'total_opp_points', 'total_team_fg_att', 'total_opp_fg_att', 'total_team_fg_made', 'total_opp_fg_made', 'total_team_fg_pct', 'total_opp_fg_pct', 
                 'total_team_3pt_att', 'total_opp_3pt_att', 'total_team_3pt_made', 'total_opp_3pt_made', 'total_team_3pt_pct', 'total_opp_3pt_pct', 'total_team_ft_att', 'total_opp_ft_att',
                 'total_team_ft_made', 'total_opp_ft_made', 'total_team_ft_pct', 'total_opp_ft_pct', 'total_team_rebounds', 'total_opp_rebounds', 'total_team_assists', 'total_opp_assists',
                 'total_team_steals', 'total_opp_steals', 'total_team_blocks', 'total_opp_blocks', 'total_team_turnovers', 'total_opp_turnovers', 'total_team_fouls', 'total_opp_fouls',
-                 'venue_code', 'team_code', 'opp_code']]
+                 'total_team_pace', 'total_opp_pace', 'team_code', 'opp_code']]
 X = X.reset_index(drop=True)
 
 y_team = data_df['team_points']
