@@ -30,8 +30,6 @@ def update_model():
 
     # Get GUI Inputs
     data_path = in_path.get()
-    season = int(year.get())
-    current_week = int(week.get())
 
     # Update Model with Current Weeks Data
     predictor_status = predictor.update_model(data_path)
