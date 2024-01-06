@@ -1,135 +1,148 @@
-from tkinter import *
-from tkinter import filedialog
+from PyQt5.QtCore import * 
+from PyQt5.QtGui import * 
+from PyQt5.QtWidgets import *
 from ScorePredictorNCAAB import ScorePredictorNCAAB as SPN
 import os
 
 ###### Button Functions ######
 # Get Path
 def get_data_path():
-    data_path = filedialog.askdirectory(title="Select Directory to NCAAB Predictor Files")
-    in_path.set(data_path)
+    data_path = QFileDialog.getExistingDirectory(w,"Select Directory to NCAAB Predictor Files")
+    spath.setText(data_path)
 
 def get_out_path():
-    result_path = filedialog.askdirectory(title="Select Directory for Prediction Results")
-    out_path.set(result_path)
+    result_path = QFileDialog.getExistingDirectory(w,"Select Directory for Prediction Results")
+    sout_path.setText(result_path)
 
 def make_predictions():
+    sstatus.clear()
     predictor = SPN()
 
     # Get GUI Inputs
-    data_path = in_path.get()
-    prediction_path = out_path.get()
+    #data_path = in_path
+    data_path = spath.text()
+    prediction_path = sout_path.text()
 
     # Make Predictions
-    predictor.predict_scores(data_path, prediction_path)
-    status.delete("1.0", "end")
-    status.insert(INSERT, "Predictions Complete")
+    status = predictor.predict_scores(data_path, prediction_path)
+    sstatus.setText(status)
 
 def update_model():
+    sstatus.clear()
     predictor = SPN()
 
     # Get GUI Inputs
-    data_path = in_path.get()
+    data_path = spath.text()
 
     # Update Model with Current Weeks Data
     predictor_status = predictor.update_model(data_path)
-    status.delete("1.0", "end")
-    status.insert(INSERT, predictor_status)
+    sstatus.setText(predictor_status)
 
 def reset_model():
+    sstatus.clear()
     predictor = SPN()
 
-    start_year = reset_years1.get()
-    end_year = reset_years2.get()
-    model_path = in_path.get()
+    start_year = sreset_years1.text()
+    end_year = sreset_years2.text()
+    model_path = spath.text()
 
     model_fit = predictor.retrain_model(model_path, start_year, end_year)
 
-    out_string = f"Score Fit: {model_fit}"
+    out_string = f"Fit Score: {model_fit}"
 
-    status.delete("1.0", "end")
-    status.insert(INSERT, out_string)
+    sstatus.setText(out_string)
 
 ###### GUI ######
 
-# Setting Main Window
-root = Tk()
-root.title("Welcome to the NCAAF Score Predictor")
-root.iconbitmap('Icon.ico')
-#root.geometry('750x600')
+app = QApplication([])
 
+w = QWidget() 
+#w.setGeometry(200,200,400,200) 
 #############################################################################################################
 # Data and Model Path
 
 # Adding a Label for Model Path
-sPath_label = Label(root, text = "Predictor Directory")
-sPath_label.grid(column =0, row =2)
+sPath_label = QLabel(w)
+sPath_label.move(1,10)
+sPath_label.setText("Predictor Directory:")
 
 # Adding a Text Entry Box for Model Path
-in_path = StringVar()
-spath = Entry(root, width=30, textvariable=in_path)
-spath.grid(column =1, row =2)
+spath = QLineEdit(w)
+spath.setGeometry(125, 5, 300, 30) 
 
 # Adding Button to Open A Dialogue Box to Select PDF
-Path_btn = Button(root, bg = 'red', width = 20, text = "Predictor Directory" ,
-             activebackground = 'white', fg = "black", command=get_data_path)
-Path_btn.grid(column=2, row=2)
+Path_btn = QPushButton(w)
+Path_btn.setGeometry(430, 2, 200, 35)
+Path_btn.setText("Get Predictor Directory")
+Path_btn.clicked.connect(get_data_path)
 
 #############################################################################################################
 # Prediction Path
 
-# Adding a Label for Model Path
-sPath_label = Label(root, text = "Results Directory")
-sPath_label.grid(column =0, row =3)
+# Adding a Label for Prediction Path
+sOut_label = QLabel(w)
+sOut_label.move(1,50)
+sOut_label.setText("Results Directory:")
 
-# Adding a Text Entry Box for Model Path
-out_path = StringVar()
-spath = Entry(root, width=30, textvariable=out_path)
-spath.grid(column =1, row =3)
+# Adding a Text Entry Box for Prediction Path
+sout_path= QLineEdit(w)
+sout_path.setGeometry(125, 45, 300, 30) 
 
 # Adding Button to Open A Dialogue Box to Select PDF
-Out_btn = Button(root, bg = 'red', width = 20, text = "Prediction Output Directory" ,
-             activebackground = 'white', fg = "black", command=get_out_path)
-Out_btn.grid(column=2, row=3)
+Out_btn = QPushButton(w)
+Out_btn.setGeometry(430, 42, 200, 35)
+Out_btn.setText("Get Output Directory")
+Out_btn.clicked.connect(get_out_path)
 
 #############################################################################################################
 
 # Adding Button to Make Predictions
-Prediction_btn = Button(root, bg = 'red', width = 25, height = 3, text = "Make Predictions" ,
-             activebackground = 'white', fg = "black", command=make_predictions)
-Prediction_btn.grid(column=0, row=4, rowspan=2)
+Prediction_btn = QPushButton(w)
+Prediction_btn.setGeometry(1, 125, 200, 35)
+Prediction_btn.setText("Make Predictions")
+Prediction_btn.clicked.connect(make_predictions)
 
 #############################################################################################################
 
-# Adding Button to Make Predictions
-Update_btn = Button(root, bg = 'red', width = 25, height = 3, text = "Update Data" ,
-             activebackground = 'white', fg = "black", command=update_model)
-Update_btn.grid(column=1, row=4, rowspan=2)
+# Adding Button to Update Model
+
+Update_btn = QPushButton(w)
+Update_btn.setGeometry(200, 125, 200, 35)
+Update_btn.setText("Update Model Data")
+Update_btn.clicked.connect(update_model)
 
 #############################################################################################################
 
 # Status Indicator
-status = StringVar()
-status = Text(root, width=30, height = 4)
-status.grid(column = 2, row=4, rowspan=2)
+
+sstatus = QLineEdit(w)
+sstatus.setGeometry(399, 120, 227, 45) 
 
 #############################################################################################################
 
 # Adding a Label for Model Retraining
-reset_label = Label(root, text = "Years for Retraining")
-reset_label.grid(column = 0, row = 6, pady=50)
 
-# Adding a Text Entry Box for 
-reset_years1 = StringVar()
-reset_years1 = Entry(root, width=14, textvariable=reset_years1)
-reset_years1.grid(column = 1, row = 6, sticky='W', pady=50)
+reset_label = QLabel(w)
+reset_label.move(1,90)
+reset_label.setText("Retraining Years:")
 
-reset_years2 = StringVar()
-reset_years2 = Entry(root, width=14, textvariable=reset_years2)
-reset_years2.grid(column = 1, row = 6, sticky='E', pady=50)
+# Adding a Text Entry Box for Retraining
 
-reset_btn = Button(root, bg = 'red', width = 20, text = "Retrain Model" ,
-             activebackground = 'white', fg = "black", command=reset_model)
-reset_btn.grid(column=2, row=6, pady=50)
+sreset_years1 = QLineEdit(w)
+sreset_years1.setGeometry(125, 85, 150, 30) 
 
-root.mainloop()
+sreset_years2 = QLineEdit(w)
+sreset_years2.setGeometry(275, 85, 150, 30) 
+
+# Adding a Button for Retraining
+
+reset_btn = QPushButton(w)
+reset_btn.setGeometry(430, 82, 200, 35)
+reset_btn.setText("Retrain Model")
+reset_btn.clicked.connect(reset_model)
+
+#############################################################################################################
+
+# Execute GUI
+w.show()
+app.exec()

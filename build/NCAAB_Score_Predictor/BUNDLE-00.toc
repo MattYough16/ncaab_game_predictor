@@ -1,0 +1,3 @@
+([('NCAAB_Score_Predictor',
+   '/Users/matthew.yough/Documents/GitHub/ncaab_game_predictor/dist/NCAAB_Score_Predictor',
+   'EXECUTABLE')],)

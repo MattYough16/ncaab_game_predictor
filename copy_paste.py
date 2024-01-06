@@ -1,47 +1,26 @@
-    game_dict['season'].append(season)
-    game_dict['date'].append(game_data.date)
-    game_dict['location'].append(game_data.location)
-    game_dict['winner'].append(game_data.winner)
-    game_dict['winning_team'].append(game_data.winning_name)
-    game_dict['losing_team'].append(game_data.losing_name)
-    game_dict['pace'].append(game_data.pace)
-
-    game_dict['away_rank'].append(game_data.away_ranking)
-    game_dict['away_field_goals_made'].append(game_data.away_field_goals)
-    game_dict['away_field_goal_attempts'].append(game_data.away_field_goal_attempts)
-    game_dict['away_field_goal_pct'].append(game_data.away_field_goal_percentage)
-    game_dict['away_3pt_made'].append(game_data.away_three_point_field_goals)
-    game_dict['away_3pt_attempts'].append(game_data.away_three_point_field_goal_attempts)
-    game_dict['away_3pt_pct'].append(game_data.away_three_point_field_goal_percentage)
-    game_dict['away_free_throws_made'].append(game_data.away_free_throws)
-    game_dict['away_free_throw_attempts'].append(game_data.away_free_throw_attempts)
-    game_dict['away_free_throw_pct'].append(game_data.away_free_throw_percentage)
-    game_dict['away_offensive_rebounds'].append(game_data.away_offensive_rebounds)
-    game_dict['away_defensive_rebounds'].append(game_data.away_defensive_rebounds)
-    game_dict['away_total_rebounds'].append(game_data.away_total_rebounds)
-    game_dict['away_assists'].append(game_data.away_assists)
-    game_dict['away_steals'].append(game_data.away_steals)
-    game_dict['away_blocks'].append(game_data.away_blocks)
-    game_dict['away_turnovers'].append(game_data.away_turnovers)
-    game_dict['away_fouls'].append(game_data.away_personal_fouls)
-    game_dict['away_points'].append(game_data.away_points)
-
-    game_dict['home_rank'].append(game_data.home_ranking)
-    game_dict['home_field_goals_made'].append(game_data.home_field_goals)
-    game_dict['home_field_goal_attempts'].append(game_data.home_field_goal_attempts)
-    game_dict['home_field_goal_pct'].append(game_data.home_field_goal_percentage)
-    game_dict['home_3pt_made'].append(game_data.home_three_point_field_goals)
-    game_dict['home_3pt_attempts'].append(game_data.home_three_point_field_goal_attempts)
-    game_dict['home_3pt_pct'].append(game_data.home_three_point_field_goal_percentage)
-    game_dict['home_free_throws_made'].append(game_data.home_free_throws)
-    game_dict['home_free_throw_attempts'].append(game_data.home_free_throw_attempts)
-    game_dict['home_free_throw_pct'].append(game_data.home_free_throw_percentage)
-    game_dict['home_offensive_rebounds'].append(game_data.home_offensive_rebounds)
-    game_dict['home_defensive_rebounds'].append(game_data.home_defensive_rebounds)
-    game_dict['home_total_rebounds'].append(game_data.home_total_rebounds)
-    game_dict['home_assists'].append(game_data.home_assists)
-    game_dict['home_steals'].append(game_data.home_steals)
-    game_dict['home_blocks'].append(game_data.home_blocks)
-    game_dict['home_turnovers'].append(game_data.home_turnovers)
-    game_dict['home_fouls'].append(game_data.home_personal_fouls)
-    game_dict['home_points'].append(game_data.home_points)
+ cbb_stats_df['team_ppg'] = cbb_stats_df['total_team_points']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_ppg'] = cbb_stats_df['total_opp_points']/cbb_stats_df['total_opp_games']
+        cbb_stats_df['team_fg_att_pg'] = cbb_stats_df['total_team_fg_att']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_fg_att_pg'] = cbb_stats_df['total_opp_fg_att']/cbb_stats_df['total_opp_games']
+        cbb_stats_df['team_fg_made_pg'] = cbb_stats_df['total_team_fg_made']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_fg_made_pg'] = cbb_stats_df['total_opp_fg_made']/cbb_stats_df['total_opp_games']
+        cbb_stats_df['team_3pt_att_pg'] = cbb_stats_df['total_team_3pt_att']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_3pt_att_pg'] = cbb_stats_df['total_opp_3pt_att']/cbb_stats_df['total_opp_games']
+        cbb_stats_df['team_3pt_made_pg'] = cbb_stats_df['total_team_3pt_made']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_3pt_made_pg'] = cbb_stats_df['total_opp_3pt_made']/cbb_stats_df['total_opp_games']
+        cbb_stats_df['team_ft_att_pg'] = cbb_stats_df['total_team_ft_att']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_ft_att_pg'] = cbb_stats_df['total_opp_ft_att']/cbb_stats_df['total_opp_games']
+        cbb_stats_df['team_ft_made_pg'] = cbb_stats_df['total_team_ft_made']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_ft_made_pg'] = cbb_stats_df['total_opp_ft_made']/cbb_stats_df['total_opp_games']
+        cbb_stats_df['team_rebounds_pg'] = cbb_stats_df['total_team_rebounds']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_rebounds_pg'] = cbb_stats_df['total_opp_rebounds']/cbb_stats_df['total_opp_games']
+        cbb_stats_df['team_assists_pg'] = cbb_stats_df['total_team_assists']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_assists_pg'] = cbb_stats_df['total_opp_assists']/cbb_stats_df['total_opp_games']
+        cbb_stats_df['team_steals_pg'] = cbb_stats_df['total_team_steals']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_steals_pg'] = cbb_stats_df['total_opp_steals']/cbb_stats_df['total_opp_games']
+        cbb_stats_df['team_blocks_pg'] = cbb_stats_df['total_team_blocks']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_blocks_pg'] = cbb_stats_df['total_opp_blocks']/cbb_stats_df['total_opp_games']
+        cbb_stats_df['team_turnovers_pg'] = cbb_stats_df['total_team_turnovers']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_turnovers_pg'] = cbb_stats_df['total_opp_turnovers']/cbb_stats_df['total_opp_games']
+        cbb_stats_df['team_fouls_pg'] = cbb_stats_df['total_team_fouls']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_fouls_pg'] = cbb_stats_df['total_opp_fouls']/cbb_stats_df['total_opp_games']

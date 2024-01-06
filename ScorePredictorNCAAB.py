@@ -4,7 +4,7 @@ import json
 import http.client
 import time
 import numpy as np
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from sportsipy.ncaab.boxscore import Boxscores, Boxscore
 from sportsipy.ncaab.teams import Teams
 from sklearn.linear_model import LinearRegression
@@ -28,7 +28,7 @@ class ScorePredictorNCAAB:
         start_month = 10
         end_month = 4
         start_year = 2013
-        end_year = 2023
+        end_year = 2024
 
         # Create Game Stats DataFrame
         print("Gathering Boxscore Data")
@@ -63,7 +63,7 @@ class ScorePredictorNCAAB:
                     continue
 
                 game_dict['season'].append(season)
-                game_dict['date'].append(game_data.date)
+                game_dict['date'].append(day)
                 game_dict['winner'].append(game_data.winner)
                 game_dict['winning_team'].append(game_data.winning_name)
                 game_dict['losing_team'].append(game_data.losing_name)
@@ -113,14 +113,16 @@ class ScorePredictorNCAAB:
         game_df['season'] = -1
 
         season = start_year
-        fall = ['October', 'November', 'December']
+        fall = ['10', '11', '12']
         for year in range(start_year, end_year+1):
             for ent in range(len(game_df)):
                 if int(game_df['date'][ent][-4:]) == year:
-                    if game_df['date'][ent].split(' ')[0] in fall:
+                    print(year)
+                    print(game_df['date'][ent][0:2])
+                    if game_df['date'][ent][0:2] in fall:
                         game_df['season'][ent] = season
                 elif int(game_df['date'][ent][-4:]) == year+1:
-                    if game_df['date'][ent].split(' ')[0] not in fall:
+                    if game_df['date'][ent][0:2] not in fall:
                         game_df['season'][ent] = season
                 else:
                     game_df['season'][ent] = game_df['season'][ent]
@@ -133,10 +135,10 @@ class ScorePredictorNCAAB:
         game_df['away_team'] = np.where(game_df['winner'] == 'Away', game_df['winning_team'], game_df['losing_team'])
 
         # Save un parsed date
-        game_df.to_excel(f'{out_path}/cbb_data.xlsx')
+        game_df.to_excel('cbb_data.xlsx')
 
         # Generate Home and Away DataFrames
-        home_df = pd.read_excel(f'{out_path}/cbb_data.xlsx')
+        home_df = pd.read_excel('cbb_data.xlsx')
         home_df.drop(columns=['Unnamed: 0'], inplace=True)
         home_df.rename(columns={'home_team': 'team', 'away_team': 'opp','home_points': 'team_points', 'away_points': 'opp_points', 'home_rank': 'team_rank', 'away_rank': 'opp_rank', 'home_field_goal_attempts': 'team_field_goal_att',
                                 'away_field_goal_attempts': 'opp_field_goal_att', 'home_field_goals_made': 'team_field_goal_made','away_field_goals_made': 'opp_field_goal_made', 
@@ -149,7 +151,7 @@ class ScorePredictorNCAAB:
                                 'home_blocks': 'team_blocks', 'away_blocks': 'opp_blocks', 'home_turnovers': 'team_turnovers', 'away_turnovers': 'opp_turnovers', 'home_fouls': 'team_fouls',
                                 'away_fouls': 'opp_fouls'}, inplace=True)
 
-        away_df = pd.read_excel(f'{out_path}/cbb_data.xlsx')
+        away_df = pd.read_excel('cbb_data.xlsx')
         away_df.drop(columns=['Unnamed: 0'], inplace=True)
         away_df.rename(columns={'away_team': 'team', 'home_team': 'opp','away_points': 'team_points', 'home_points': 'opp_points', 'away_rank': 'team_rank', 'home_rank': 'opp_rank', 'away_field_goal_attempts': 'team_field_goal_att',
                                 'home_field_goal_attempts': 'opp_field_goal_att', 'away_field_goals_made': 'team_field_goal_made','home_field_goals_made': 'opp_field_goal_made', 
@@ -166,8 +168,12 @@ class ScorePredictorNCAAB:
         cbb_stats_df = pd.concat([home_df, away_df])
 
         # Summarize Data Across a Season
+        cbb_stats_df['date']= pd.to_datetime(cbb_stats_df['date'])
         cbb_stats_df.sort_values(by=['season','date'], ascending=True, inplace=True)
         cbb_stats_df['game_counter'] = 1
+        cbb_stats_df['team_pace'] = cbb_stats_df.groupby(['season','team'])['pace'].cumsum()/cbb_stats_df.groupby(['season','team'])['game_counter'].cumsum() * 100
+        cbb_stats_df['opp_pace'] = cbb_stats_df.groupby(['season','opp'])['pace'].cumsum()/cbb_stats_df.groupby(['season','opp'])['game_counter'].cumsum() * 100
+        cbb_stats_df.to_excel('pre_totaled_data.xlsx')
 
         cbb_stats_df['total_team_games'] = cbb_stats_df.groupby(['season','team'])['games'].cumsum()
         cbb_stats_df['total_opp_games'] = cbb_stats_df.groupby(['season','opp'])['games'].cumsum()
@@ -203,20 +209,18 @@ class ScorePredictorNCAAB:
         cbb_stats_df['total_opp_turnovers'] = cbb_stats_df.groupby(['season','opp'])['opp_turnovers'].cumsum()
         cbb_stats_df['total_team_fouls'] = cbb_stats_df.groupby(['season','team'])['team_fouls'].cumsum()
         cbb_stats_df['total_opp_fouls'] = cbb_stats_df.groupby(['season','opp'])['opp_fouls'].cumsum()
-        cbb_stats_df['total_team_pace'] = cbb_stats_df.groupby(['season','team'])['pace'].cumsum()/cbb_stats_df.groupby(['season','team'])['game_counter'].cumsum() * 100
-        cbb_stats_df['total_opp_pace'] = cbb_stats_df.groupby(['season','opp'])['pace'].cumsum()/cbb_stats_df.groupby(['season','opp'])['game_counter'].cumsum() * 100
 
-        cbb_stats_df.to_excel(f'{out_path}/cbb_raw_data.xlsx')
+        cbb_stats_df.to_excel('cbb_raw_data.xlsx')
 
         # Organize and Normalize Data
-        cbb_norm_df = pd.read_excel(f'{out_path}/cbb_raw_data.xlsx')
+        cbb_norm_df = pd.read_excel('cbb_raw_data.xlsx')
         cbb_norm_df.drop(columns=['Unnamed: 0'], inplace=True)
 
         cbb_norm_df['team_code'] = cbb_norm_df['team'].astype("category").cat.codes
         cbb_norm_df['opp_code'] = cbb_norm_df['opp'].astype("category").cat.codes
         cbb_norm_df['team_rank'] = cbb_norm_df['team_rank'].fillna(50)
         cbb_norm_df['opp_rank'] = cbb_norm_df['opp_rank'].fillna(50)
-        cbb_norm_df.to_excel(f'{out_path}/cbb_nonnorm_data.xlsx')
+        cbb_norm_df.to_excel('cbb_nonnorm_data.xlsx')
 
         cbb_norm_df['total_team_points'] = cbb_norm_df['total_team_points']/cbb_norm_df['total_team_points'].max()
         cbb_norm_df['total_opp_points'] = cbb_norm_df['total_opp_points']/cbb_norm_df['total_opp_points'].max()
@@ -254,10 +258,10 @@ class ScorePredictorNCAAB:
         cbb_norm_df['opp_code'] = cbb_norm_df['opp_code']/cbb_norm_df['opp_code'].max()
         cbb_norm_df['team_rank'] = cbb_norm_df['team_rank']/cbb_norm_df['team_rank'].max()
         cbb_norm_df['opp_rank'] = cbb_norm_df['opp_rank']/cbb_norm_df['opp_rank'].max()
-        cbb_norm_df['total_team_pace'] = cbb_norm_df['total_team_pace']/cbb_norm_df['total_team_pace'].max()
-        cbb_norm_df['total_opp_pace'] = cbb_norm_df['total_opp_pace']/cbb_norm_df['total_opp_pace'].max()
+        cbb_norm_df['total_team_pace'] = cbb_norm_df['team_pace']/cbb_norm_df['team_pace'].max()
+        cbb_norm_df['total_opp_pace'] = cbb_norm_df['opp_pace']/cbb_norm_df['opp_pace'].max()
 
-        cbb_norm_df.to_excel(f'{out_path}/cbb_norm_data.xlsx')
+        cbb_norm_df.to_excel('cbb_norm_data.xlsx')
 
 ########################################################################################################################################
 ########################################################################################################################################
@@ -279,11 +283,11 @@ class ScorePredictorNCAAB:
         data_df = data_df.dropna(axis = 0).reset_index()
 
         # Define Metrics for Input Variables
-        X = data_df[['total_team_games', 'total_opp_games', 'total_team_points', 'total_opp_points', 'total_team_fg_att', 'total_opp_fg_att', 'total_team_fg_made', 'total_opp_fg_made', 'total_team_fg_pct', 'total_opp_fg_pct', 
-                        'total_team_3pt_att', 'total_opp_3pt_att', 'total_team_3pt_made', 'total_opp_3pt_made', 'total_team_3pt_pct', 'total_opp_3pt_pct', 'total_team_ft_att', 'total_opp_ft_att',
-                        'total_team_ft_made', 'total_opp_ft_made', 'total_team_ft_pct', 'total_opp_ft_pct', 'total_team_rebounds', 'total_opp_rebounds', 'total_team_assists', 'total_opp_assists',
-                        'total_team_steals', 'total_opp_steals', 'total_team_blocks', 'total_opp_blocks', 'total_team_turnovers', 'total_opp_turnovers', 'total_team_fouls', 'total_opp_fouls',
-                        'total_team_pace', 'total_opp_pace', 'team_code', 'opp_code']]
+        X = data_df[['team_ppg', 'opp_ppg', 'team_fg_att_pg', 'opp_fg_att_pg', 'team_fg_made_pg', 'opp_fg_made_pg', 'total_team_fg_pct', 'total_opp_fg_pct', 
+                        'team_3pt_att_pg', 'opp_3pt_att_pg', 'team_3pt_made_pg', 'opp_3pt_made_pg', 'total_team_3pt_pct', 'total_opp_3pt_pct', 'team_ft_att_pg', 'opp_ft_att_pg',
+                        'team_ft_made_pg', 'opp_ft_made_pg', 'total_team_ft_pct', 'total_opp_ft_pct', 'team_rebounds_pg', 'opp_rebounds_pg', 'team_assists_pg', 'opp_assists_pg',
+                        'team_steals_pg', 'opp_steals_pg', 'team_blocks_pg', 'opp_blocks_pg', 'team_turnovers_pg', 'opp_turnovers_pg', 'team_fouls_pg', 'opp_fouls_pg',
+                         'team_code', 'opp_code', 'total_team_pace', 'total_opp_pace']]
         X = X.reset_index(drop=True)
 
         y_team = data_df['team_points']
@@ -323,7 +327,11 @@ class ScorePredictorNCAAB:
         date_ = date.today()
         year = date_.year
 
-        teams = Teams(year=year)
+        try:
+            teams = Teams(year=year+1)
+        except:
+            teams = Teams(year=year)
+        
         stats_dict = {'team': [], 'games': [], 'pace': [], 'field_goals_made': [], 'field_goal_attempts': [], 'field_goal_pct': [], '3pt_made': [], '3pt_attempts': [],
                     '3pt_pct': [], 'free_throws_made': [], 'free_throw_attempts': [], 'free_throw_pct': [], 'offensive_rebounds': [],
                     'defensive_rebounds': [], 'total_rebounds': [], 'assists': [], 'steals': [], 'blocks': [], 'turnovers': [], 'fouls': [], 'points': []}
@@ -353,7 +361,11 @@ class ScorePredictorNCAAB:
 
         stats_df = pd.DataFrame(stats_dict)
 
-        games = Boxscores(datetime.today())
+        try:
+            games = Boxscores(datetime.today())
+        except:
+            return "No Games Today"
+        
         game_dict = {'date': [], 'away_team': [], 'away_rank': [], 'home_team': [], 'home_rank': []}
 
         cur_date = date.today()
@@ -367,6 +379,9 @@ class ScorePredictorNCAAB:
             game_dict['away_team'].append(game['away_name'])
             game_dict['home_team'].append(game['home_name'])
 
+        if len(game_dict['date']) == 0:
+            return "No Games Today"
+        
         game_df = pd.DataFrame(game_dict)
 
         cbb_df = pd.merge(game_df, stats_df, left_on='away_team', right_on='team')
@@ -423,67 +438,102 @@ class ScorePredictorNCAAB:
 
         cbb_stats_df['total_team_games'] = cbb_stats_df['team_games']
         cbb_stats_df['total_opp_games'] = cbb_stats_df['opp_games']
-        cbb_stats_df['total_team_points'] = cbb_stats_df['team_points']/cbb_stats_df['team_points'].max()
-        cbb_stats_df['total_opp_points'] = cbb_stats_df['opp_points']/cbb_stats_df['opp_points'].max()
-        cbb_stats_df['total_team_fg_att'] = cbb_stats_df['team_field_goal_att']/cbb_stats_df['team_field_goal_att'].max()
-        cbb_stats_df['total_opp_fg_att'] = cbb_stats_df['opp_field_goal_att']/cbb_stats_df['opp_field_goal_att'].max()
-        cbb_stats_df['total_team_fg_made'] = cbb_stats_df['team_field_goal_made']/cbb_stats_df['team_field_goal_made'].max() 
-        cbb_stats_df['total_opp_fg_made'] = cbb_stats_df['opp_field_goal_made']/cbb_stats_df['opp_field_goal_made'].max()
-        cbb_stats_df['total_team_fg_pct'] = cbb_stats_df['team_field_goal_pct']/cbb_stats_df['team_field_goal_pct'].max()
-        cbb_stats_df['total_opp_fg_pct'] = cbb_stats_df['opp_field_goal_pct']/cbb_stats_df['opp_field_goal_pct'].max()
-        cbb_stats_df['total_team_3pt_att'] = cbb_stats_df['team_3pt_att']/cbb_stats_df['team_3pt_att'].max()
-        cbb_stats_df['total_opp_3pt_att'] = cbb_stats_df['opp_3pt_att']/cbb_stats_df['opp_3pt_att'].max()
-        cbb_stats_df['total_team_3pt_made'] = cbb_stats_df['team_3pt_made']/cbb_stats_df['team_3pt_made'].max()
-        cbb_stats_df['total_opp_3pt_made'] = cbb_stats_df['opp_3pt_made']/cbb_stats_df['opp_3pt_made'].max()
-        cbb_stats_df['total_team_3pt_pct'] = cbb_stats_df['team_3pt_pct']/cbb_stats_df['team_3pt_pct'].max()
-        cbb_stats_df['total_opp_3pt_pct'] = cbb_stats_df['opp_3pt_pct']/cbb_stats_df['opp_3pt_pct'].max()
-        cbb_stats_df['total_team_ft_att'] = cbb_stats_df['team_free_throw_att']/cbb_stats_df['team_free_throw_att'].max()
-        cbb_stats_df['total_opp_ft_att'] = cbb_stats_df['opp_free_throw_att']/cbb_stats_df['opp_free_throw_att'].max()
-        cbb_stats_df['total_team_ft_made'] = cbb_stats_df['team_free_throw_made']/cbb_stats_df['team_free_throw_made'].max()
-        cbb_stats_df['total_opp_ft_made'] = cbb_stats_df['opp_free_throw_made']/cbb_stats_df['opp_free_throw_made'].max()
-        cbb_stats_df['total_team_ft_pct'] = cbb_stats_df['team_free_throw_pct']/cbb_stats_df['team_free_throw_pct'].max()
-        cbb_stats_df['total_opp_ft_pct'] = cbb_stats_df['opp_free_throw_pct']/cbb_stats_df['opp_free_throw_pct'].max()
-        cbb_stats_df['total_team_rebounds'] = cbb_stats_df['team_rebounds']/cbb_stats_df['team_rebounds'].max()
-        cbb_stats_df['total_opp_rebounds'] = cbb_stats_df['opp_rebounds']/cbb_stats_df['opp_rebounds'].max()
-        cbb_stats_df['total_team_assists'] = cbb_stats_df['team_assists']/cbb_stats_df['team_assists'].max()
-        cbb_stats_df['total_opp_assists'] = cbb_stats_df['opp_assists']/cbb_stats_df['opp_assists'].max()
-        cbb_stats_df['total_team_steals'] = cbb_stats_df['team_steals']/cbb_stats_df['team_steals'].max()
-        cbb_stats_df['total_opp_steals'] = cbb_stats_df['opp_steals']/cbb_stats_df['opp_steals'].max()
-        cbb_stats_df['total_team_blocks'] = cbb_stats_df['team_blocks']/cbb_stats_df['team_blocks'].max()
-        cbb_stats_df['total_opp_blocks'] = cbb_stats_df['opp_blocks']/cbb_stats_df['opp_blocks'].max()
-        cbb_stats_df['total_team_turnovers'] = cbb_stats_df['team_turnovers'] /cbb_stats_df['team_turnovers'] .max()
-        cbb_stats_df['total_opp_turnovers'] = cbb_stats_df['opp_turnovers']/cbb_stats_df['opp_turnovers'].max()
-        cbb_stats_df['total_team_fouls'] = cbb_stats_df['team_fouls']/cbb_stats_df['team_fouls'].max()
-        cbb_stats_df['total_opp_fouls'] = cbb_stats_df['opp_fouls']/cbb_stats_df['opp_fouls'].max()
-        cbb_stats_df['total_team_code'] = cbb_stats_df['team_code']/cbb_stats_df['team_code'].max()
-        cbb_stats_df['total_opp_code'] = cbb_stats_df['opp_code']/cbb_stats_df['opp_code'].max()
-        cbb_stats_df['total_team_rank'] = cbb_stats_df['team_rank']/cbb_stats_df['team_rank'].max()
-        cbb_stats_df['total_opp_rank'] = cbb_stats_df['opp_rank']/cbb_stats_df['opp_rank'].max()
+        cbb_stats_df['total_team_points'] = cbb_stats_df['team_points']
+        cbb_stats_df['total_opp_points'] = cbb_stats_df['opp_points']
+        cbb_stats_df['total_team_fg_att'] = cbb_stats_df['team_field_goal_att']
+        cbb_stats_df['total_opp_fg_att'] = cbb_stats_df['opp_field_goal_att']
+        cbb_stats_df['total_team_fg_made'] = cbb_stats_df['team_field_goal_made']
+        cbb_stats_df['total_opp_fg_made'] = cbb_stats_df['opp_field_goal_made']
+        cbb_stats_df['total_team_fg_pct'] = cbb_stats_df['team_field_goal_pct'] * 100
+        cbb_stats_df['total_opp_fg_pct'] = cbb_stats_df['opp_field_goal_pct'] * 100
+        cbb_stats_df['total_team_3pt_att'] = cbb_stats_df['team_3pt_att']
+        cbb_stats_df['total_opp_3pt_att'] = cbb_stats_df['opp_3pt_att']
+        cbb_stats_df['total_team_3pt_made'] = cbb_stats_df['team_3pt_made']
+        cbb_stats_df['total_opp_3pt_made'] = cbb_stats_df['opp_3pt_made']
+        cbb_stats_df['total_team_3pt_pct'] = cbb_stats_df['team_3pt_pct'] * 100
+        cbb_stats_df['total_opp_3pt_pct'] = cbb_stats_df['opp_3pt_pct'] * 100
+        cbb_stats_df['total_team_ft_att'] = cbb_stats_df['team_free_throw_att']
+        cbb_stats_df['total_opp_ft_att'] = cbb_stats_df['opp_free_throw_att']
+        cbb_stats_df['total_team_ft_made'] = cbb_stats_df['team_free_throw_made']
+        cbb_stats_df['total_opp_ft_made'] = cbb_stats_df['opp_free_throw_made']
+        cbb_stats_df['total_team_ft_pct'] = cbb_stats_df['team_free_throw_pct'] * 100
+        cbb_stats_df['total_opp_ft_pct'] = cbb_stats_df['opp_free_throw_pct'] * 100
+        cbb_stats_df['total_team_rebounds'] = cbb_stats_df['team_rebounds']
+        cbb_stats_df['total_opp_rebounds'] = cbb_stats_df['opp_rebounds']
+        cbb_stats_df['total_team_assists'] = cbb_stats_df['team_assists']
+        cbb_stats_df['total_opp_assists'] = cbb_stats_df['opp_assists']
+        cbb_stats_df['total_team_steals'] = cbb_stats_df['team_steals']
+        cbb_stats_df['total_opp_steals'] = cbb_stats_df['opp_steals']
+        cbb_stats_df['total_team_blocks'] = cbb_stats_df['team_blocks']
+        cbb_stats_df['total_opp_blocks'] = cbb_stats_df['opp_blocks']
+        cbb_stats_df['total_team_turnovers'] = cbb_stats_df['team_turnovers']
+        cbb_stats_df['total_opp_turnovers'] = cbb_stats_df['opp_turnovers']
+        cbb_stats_df['total_team_fouls'] = cbb_stats_df['team_fouls']
+        cbb_stats_df['total_opp_fouls'] = cbb_stats_df['opp_fouls']
+        cbb_stats_df['total_team_code'] = cbb_stats_df['team_code']
+        cbb_stats_df['total_opp_code'] = cbb_stats_df['opp_code']
+        cbb_stats_df['total_team_rank'] = cbb_stats_df['team_rank']
+        cbb_stats_df['total_opp_rank'] = cbb_stats_df['opp_rank']
+        cbb_stats_df['team_code'] = cbb_stats_df['team_code']/cbb_stats_df['team_code'].max()
+        cbb_stats_df['opp_code'] = cbb_stats_df['opp_code']/cbb_stats_df['opp_code'].max()
+        cbb_stats_df['team_rank'] = cbb_stats_df['team_rank']/cbb_stats_df['team_rank'].max()
+        cbb_stats_df['opp_rank'] = cbb_stats_df['opp_rank']/cbb_stats_df['opp_rank'].max()
         cbb_stats_df['total_team_pace'] = cbb_stats_df['team_pace']/cbb_stats_df['team_pace'].max()
         cbb_stats_df['total_opp_pace'] = cbb_stats_df['opp_pace']/cbb_stats_df['opp_pace'].max()
 
+        cbb_stats_df['team_ppg'] = cbb_stats_df['total_team_points']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_ppg'] = cbb_stats_df['total_opp_points']/cbb_stats_df['total_opp_games']
+        cbb_stats_df['team_fg_att_pg'] = cbb_stats_df['total_team_fg_att']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_fg_att_pg'] = cbb_stats_df['total_opp_fg_att']/cbb_stats_df['total_opp_games']
+        cbb_stats_df['team_fg_made_pg'] = cbb_stats_df['total_team_fg_made']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_fg_made_pg'] = cbb_stats_df['total_opp_fg_made']/cbb_stats_df['total_opp_games']
+        cbb_stats_df['team_3pt_att_pg'] = cbb_stats_df['total_team_3pt_att']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_3pt_att_pg'] = cbb_stats_df['total_opp_3pt_att']/cbb_stats_df['total_opp_games']
+        cbb_stats_df['team_3pt_made_pg'] = cbb_stats_df['total_team_3pt_made']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_3pt_made_pg'] = cbb_stats_df['total_opp_3pt_made']/cbb_stats_df['total_opp_games']
+        cbb_stats_df['team_ft_att_pg'] = cbb_stats_df['total_team_ft_att']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_ft_att_pg'] = cbb_stats_df['total_opp_ft_att']/cbb_stats_df['total_opp_games']
+        cbb_stats_df['team_ft_made_pg'] = cbb_stats_df['total_team_ft_made']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_ft_made_pg'] = cbb_stats_df['total_opp_ft_made']/cbb_stats_df['total_opp_games']
+        cbb_stats_df['team_rebounds_pg'] = cbb_stats_df['total_team_rebounds']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_rebounds_pg'] = cbb_stats_df['total_opp_rebounds']/cbb_stats_df['total_opp_games']
+        cbb_stats_df['team_assists_pg'] = cbb_stats_df['total_team_assists']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_assists_pg'] = cbb_stats_df['total_opp_assists']/cbb_stats_df['total_opp_games']
+        cbb_stats_df['team_steals_pg'] = cbb_stats_df['total_team_steals']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_steals_pg'] = cbb_stats_df['total_opp_steals']/cbb_stats_df['total_opp_games']
+        cbb_stats_df['team_blocks_pg'] = cbb_stats_df['total_team_blocks']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_blocks_pg'] = cbb_stats_df['total_opp_blocks']/cbb_stats_df['total_opp_games']
+        cbb_stats_df['team_turnovers_pg'] = cbb_stats_df['total_team_turnovers']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_turnovers_pg'] = cbb_stats_df['total_opp_turnovers']/cbb_stats_df['total_opp_games']
+        cbb_stats_df['team_fouls_pg'] = cbb_stats_df['total_team_fouls']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_fouls_pg'] = cbb_stats_df['total_opp_fouls']/cbb_stats_df['total_opp_games']
+
+        cbb_stats_df.reset_index(drop=True, inplace=True)
         # Load Models
         regr = joblib.load(f"{model_path}/{model_file}")
 
         # Define Metrics for Input Variables
-        X = cbb_stats_df[['total_team_games', 'total_opp_games', 'total_team_points', 'total_opp_points', 'total_team_fg_att', 'total_opp_fg_att', 'total_team_fg_made', 'total_opp_fg_made', 'total_team_fg_pct', 'total_opp_fg_pct', 
-                        'total_team_3pt_att', 'total_opp_3pt_att', 'total_team_3pt_made', 'total_opp_3pt_made', 'total_team_3pt_pct', 'total_opp_3pt_pct', 'total_team_ft_att', 'total_opp_ft_att',
-                        'total_team_ft_made', 'total_opp_ft_made', 'total_team_ft_pct', 'total_opp_ft_pct', 'total_team_rebounds', 'total_opp_rebounds', 'total_team_assists', 'total_opp_assists',
-                        'total_team_steals', 'total_opp_steals', 'total_team_blocks', 'total_opp_blocks', 'total_team_turnovers', 'total_opp_turnovers', 'total_team_fouls', 'total_opp_fouls',
-                        'total_team_pace', 'total_opp_pace', 'team_code', 'opp_code']]
+        
+        X = cbb_stats_df[['team_ppg', 'opp_ppg', 'team_fg_att_pg', 'opp_fg_att_pg', 'team_fg_made_pg', 'opp_fg_made_pg', 'total_team_fg_pct', 'total_opp_fg_pct', 
+                        'team_3pt_att_pg', 'opp_3pt_att_pg', 'team_3pt_made_pg', 'opp_3pt_made_pg', 'total_team_3pt_pct', 'total_opp_3pt_pct', 'team_ft_att_pg', 'opp_ft_att_pg',
+                        'team_ft_made_pg', 'opp_ft_made_pg', 'total_team_ft_pct', 'total_opp_ft_pct', 'team_rebounds_pg', 'opp_rebounds_pg', 'team_assists_pg', 'opp_assists_pg',
+                        'team_steals_pg', 'opp_steals_pg', 'team_blocks_pg', 'opp_blocks_pg', 'team_turnovers_pg', 'opp_turnovers_pg', 'team_fouls_pg', 'opp_fouls_pg',
+                        ]]
         X = X.reset_index(drop=True)
-
+        
         # Run Model
         y_pred = regr.predict(X)
 
         # Create Predictions DataFrame
         predictions = {'Home_Team' : cbb_stats_df['team'].iloc[0:int(len(cbb_stats_df)/2)], 'home_points': np.round(y_pred)[0: int(len(y_pred)/2)]}
         predictions_df = pd.DataFrame(data=predictions)
-        predictions_df['Away_Team'] = cbb_stats_df['team'].iloc[int(len(cbb_stats_df)/2):]
+        predictions_df['Away_Team'] = cbb_stats_df['team'].iloc[int(len(cbb_stats_df)/2):].values
         predictions_df['away_points'] = np.round(y_pred)[int(len(y_pred)/2):]
 
         # Save DFs to Excel
         predictions_df.to_excel(f"{out_path}/NCAAB {date_.year}-{date_.month}-{date_.day} Score Predictions.xlsx")
+
+        return "Predictions Complete"
 ########################################################################################################################################
 ########################################################################################################################################
 ########################################################################################################################################
@@ -491,37 +541,27 @@ class ScorePredictorNCAAB:
 
     ###### Update Model ######
     def update_model(self, path):
+
+        return "Update Functionality Not Available"
+    
         cbb_norm_path = path
         cbb_norm_name = "cbb_norm_data.xlsx"
 
         old_training_df = pd.read_excel(f"{cbb_norm_path}/{cbb_norm_name}", index_col=0)
 
-        '''
-        # Check to make sure data from same week hasn't already been added
-        #old_full_df['season_week'] = old_full_df['season'].astype(str) + "," + old_full_df['week'].astype(str)
-        #season_week = str(year) + "," + str(current_week)
-        season_week = date.now()
+        date_ = date.today() - timedelta(days=1)
+        year = date_.year
 
-        if season_week in old_full_df['season_week'].values:
-            return f"Already input Season {year}, Week {current_week} Data"
+        if old_training_df['date'].iloc[len(old_training_df)-1] == date_:
+            return "Data Already up to Date"
 
-        if bPO:
-            return f"Cannot Update Model with Playoff Data"
+        teams = Teams(year=year+1)
 
-        old_full_df.drop(columns={'season_week'}, inplace=True)
-        '''
-
-        date = date.today()
-        year = date.year
-
-        teams = Teams(year=year)
-
-        stats_dict = {'team': [], 'games': [], 'pace': [], 'field_goals_made': [], 'field_goal_attempts': [], 'field_goal_pct': [], '3pt_made': [], '3pt_attempts': [],
+        stats_dict = {'team': [], 'pace': [], 'field_goals_made': [], 'field_goal_attempts': [], 'field_goal_pct': [], '3pt_made': [], '3pt_attempts': [],
                 '3pt_pct': [], 'free_throws_made': [], 'free_throw_attempts': [], 'free_throw_pct': [], 'offensive_rebounds': [],
                 'defensive_rebounds': [], 'total_rebounds': [], 'assists': [], 'steals': [], 'blocks': [], 'turnovers': [], 'fouls': [], 'points': []}
         for team in teams:
             stats_dict['team'].append(team.name)
-            stats_dict['games'].append(team.games_played)
             stats_dict['pace'].append(team.pace)
 
             stats_dict['field_goals_made'].append(team.field_goals)
@@ -545,10 +585,10 @@ class ScorePredictorNCAAB:
 
         stats_df = pd.DataFrame(stats_dict)
 
-        games = Boxscores(datetime.today())
+        games = Boxscores(date.today() - timedelta(days=1))
         game_dict = {'date': [], 'away_team': [], 'away_rank': [], 'home_team': [], 'home_rank': []}
 
-        cur_date = date.today()
+        cur_date = date.today() - timedelta(days=1)
         day = f"{str(cur_date.month)}-{str(cur_date.day)}-{str(cur_date.year)}"
         for game in games.games[day]:
             game_dict['date'].append(day)
@@ -557,19 +597,22 @@ class ScorePredictorNCAAB:
             game_dict['away_team'].append(game['away_name'])
             game_dict['home_team'].append(game['home_name'])
 
+        if len(game_dict['date']) == 0:
+            return "No Games Today to Update Model"
+        
         game_df = pd.DataFrame(game_dict)
 
         cbb_df = pd.merge(game_df, stats_df, left_on='away_team', right_on='team')
         cbb_df2 = pd.merge(cbb_df, stats_df, left_on='home_team', right_on='team')  
 
         cbb_df2.drop(columns=['team_x', 'team_y'], inplace=True)
-        cbb_df2.rename(columns={'games_x': 'away_games', 'pace_x': 'away_pace', 'field_goals_made_x': 'away_field_goals_made', 'field_goal_attempts_x': 'away_field_goal_attempts',
+        cbb_df2.rename(columns={'pace_x': 'away_pace', 'field_goals_made_x': 'away_field_goals_made', 'field_goal_attempts_x': 'away_field_goal_attempts',
                                 'field_goal_pct_x': 'away_field_goal_pct', '3pt_made_x': 'away_3pt_made', '3pt_attempts_x': 'away_3pt_attempts',
                                 '3pt_pct_x': 'away_3pt_pct', 'free_throws_made_x': 'away_free_throws_made', 'free_throw_attempts_x': 'away_free_throw_attempts',
                                 'free_throw_pct_x': 'away_free_throw_pct', 'offensive_rebounds_x': 'away_offensive_rebounds', 'defensive_rebounds_x': 'away_defensive_rebounds',
                                 'total_rebounds_x': 'away_total_rebounds', 'assists_x': 'away_assists', 'steals_x': 'away_steals', 'blocks_x': 'away_blocks', 'turnovers_x': 'away_turnovers',
                                 'fouls_x': 'away_fouls', 'points_x': 'away_points', 
-                                'games_y': 'home_games', 'pace_y': 'home_pace', 'field_goals_made_y': 'home_field_goals_made', 'field_goal_attempts_y': 'home_field_goal_attempts',
+                                'pace_y': 'home_pace', 'field_goals_made_y': 'home_field_goals_made', 'field_goal_attempts_y': 'home_field_goal_attempts',
                                 'field_goal_pct_y': 'home_field_goal_pct', '3pt_made_y': 'home_3pt_made', '3pt_attempts_y': 'home_3pt_attempts',
                                 '3pt_pct_y': 'home_3pt_pct', 'free_throws_made_y': 'home_free_throws_made', 'free_throw_attempts_y': 'home_free_throw_attempts',
                                 'free_throw_pct_y': 'home_free_throw_pct', 'offensive_rebounds_y': 'home_offensive_rebounds', 'defensive_rebounds_y': 'home_defensive_rebounds',
@@ -588,7 +631,7 @@ class ScorePredictorNCAAB:
                                 'away_total_rebounds': 'opp_rebounds', 'home_offensive_rebounds': 'team_off_rebounds', 'away_offensive_rebounds': 'opp_off_rebounds',
                                 'home_defensive_rebounds': 'team_def_rebounds', 'away_defensive_rebounds': 'opp_def_rebounds','home_assists':'team_assists', 'away_assists': 'opp_assists', 'home_steals': 'team_steals', 'away_steals': 'opp_steals',
                                 'home_blocks': 'team_blocks', 'away_blocks': 'opp_blocks', 'home_turnovers': 'team_turnovers', 'away_turnovers': 'opp_turnovers', 'home_fouls': 'team_fouls',
-                                'away_fouls': 'opp_fouls', 'home_games': 'team_games', 'away_games': 'opp_games', 'home_pace': 'team_pace', 'away_pace': 'opp_pace'}, inplace=True)
+                                'away_fouls': 'opp_fouls', 'home_pace': 'team_pace', 'away_pace': 'opp_pace'}, inplace=True)
 
         away_df = pd.read_excel('cbb_update_raw.xlsx')
         away_df.drop(columns=['Unnamed: 0'], inplace=True)
@@ -601,111 +644,145 @@ class ScorePredictorNCAAB:
                                 'home_total_rebounds': 'opp_rebounds', 'away_offensive_rebounds': 'team_off_rebounds', 'home_offensive_rebounds': 'opp_off_rebounds',
                                 'away_defensive_rebounds': 'team_def_rebounds', 'home_defensive_rebounds': 'opp_def_rebounds','away_assists':'team_assists', 'home_assists': 'opp_assists', 'away_steals': 'team_steals', 'home_steals': 'opp_steals',
                                 'away_blocks': 'team_blocks', 'home_blocks': 'opp_blocks', 'away_turnovers': 'team_turnovers', 'home_turnovers': 'opp_turnovers', 'away_fouls': 'team_fouls',
-                                'home_fouls': 'opp_fouls', 'away_games': 'team_games', 'home_games': 'opp_games', 'away_pace': 'team_pace', 'home_pace': 'opp_pace'}, inplace=True)
+                                'home_fouls': 'opp_fouls', 'away_pace': 'team_pace', 'home_pace': 'opp_pace'}, inplace=True)
 
 
         # Combine Home and Away DataFrames
         cbb_stats_df = pd.concat([home_df, away_df])
 
+        cbb_stats_df['games'] = 1
         cbb_stats_df['team_code'] = cbb_stats_df['team'].astype("category").cat.codes
         cbb_stats_df['opp_code'] = cbb_stats_df['opp'].astype("category").cat.codes
         cbb_stats_df['team_rank'] = cbb_stats_df['team_rank'].fillna(50)
         cbb_stats_df['opp_rank'] = cbb_stats_df['opp_rank'].fillna(50)
+        cbb_stats_df['season'] = year
 
         # Combine Old Data and New Data
         cbb_stats_df = pd.concat([old_training_df, cbb_stats_df])
 
-        cbb_stats_df['total_team_games'] = cbb_stats_df['team_games']
-        cbb_stats_df['total_opp_games'] = cbb_stats_df['opp_games']
-        cbb_stats_df['total_team_points'] = cbb_stats_df['team_points']/cbb_stats_df['team_points'].max()
-        cbb_stats_df['total_opp_points'] = cbb_stats_df['opp_points']/cbb_stats_df['opp_points'].max()
-        cbb_stats_df['total_team_fg_att'] = cbb_stats_df['team_field_goal_att']/cbb_stats_df['team_field_goal_att'].max()
-        cbb_stats_df['total_opp_fg_att'] = cbb_stats_df['opp_field_goal_att']/cbb_stats_df['opp_field_goal_att'].max()
-        cbb_stats_df['total_team_fg_made'] = cbb_stats_df['team_field_goal_made']/cbb_stats_df['team_field_goal_made'].max() 
-        cbb_stats_df['total_opp_fg_made'] = cbb_stats_df['opp_field_goal_made']/cbb_stats_df['opp_field_goal_made'].max()
-        cbb_stats_df['total_team_fg_pct'] = cbb_stats_df['team_field_goal_pct']/cbb_stats_df['team_field_goal_pct'].max()
-        cbb_stats_df['total_opp_fg_pct'] = cbb_stats_df['opp_field_goal_pct']/cbb_stats_df['opp_field_goal_pct'].max()
-        cbb_stats_df['total_team_3pt_att'] = cbb_stats_df['team_3pt_att']/cbb_stats_df['team_3pt_att'].max()
-        cbb_stats_df['total_opp_3pt_att'] = cbb_stats_df['opp_3pt_att']/cbb_stats_df['opp_3pt_att'].max()
-        cbb_stats_df['total_team_3pt_made'] = cbb_stats_df['team_3pt_made']/cbb_stats_df['team_3pt_made'].max()
-        cbb_stats_df['total_opp_3pt_made'] = cbb_stats_df['opp_3pt_made']/cbb_stats_df['opp_3pt_made'].max()
-        cbb_stats_df['total_team_3pt_pct'] = cbb_stats_df['team_3pt_pct']/cbb_stats_df['team_3pt_pct'].max()
-        cbb_stats_df['total_opp_3pt_pct'] = cbb_stats_df['opp_3pt_pct']/cbb_stats_df['opp_3pt_pct'].max()
-        cbb_stats_df['total_team_ft_att'] = cbb_stats_df['team_free_throw_att']/cbb_stats_df['team_free_throw_att'].max()
-        cbb_stats_df['total_opp_ft_att'] = cbb_stats_df['opp_free_throw_att']/cbb_stats_df['opp_free_throw_att'].max()
-        cbb_stats_df['total_team_ft_made'] = cbb_stats_df['team_free_throw_made']/cbb_stats_df['team_free_throw_made'].max()
-        cbb_stats_df['total_opp_ft_made'] = cbb_stats_df['opp_free_throw_made']/cbb_stats_df['opp_free_throw_made'].max()
-        cbb_stats_df['total_team_ft_pct'] = cbb_stats_df['team_free_throw_pct']/cbb_stats_df['team_free_throw_pct'].max()
-        cbb_stats_df['total_opp_ft_pct'] = cbb_stats_df['opp_free_throw_pct']/cbb_stats_df['opp_free_throw_pct'].max()
-        cbb_stats_df['total_team_rebounds'] = cbb_stats_df['team_rebounds']/cbb_stats_df['team_rebounds'].max()
-        cbb_stats_df['total_opp_rebounds'] = cbb_stats_df['opp_rebounds']/cbb_stats_df['opp_rebounds'].max()
-        cbb_stats_df['total_team_assists'] = cbb_stats_df['team_assists']/cbb_stats_df['team_assists'].max()
-        cbb_stats_df['total_opp_assists'] = cbb_stats_df['opp_assists']/cbb_stats_df['opp_assists'].max()
-        cbb_stats_df['total_team_steals'] = cbb_stats_df['team_steals']/cbb_stats_df['team_steals'].max()
-        cbb_stats_df['total_opp_steals'] = cbb_stats_df['opp_steals']/cbb_stats_df['opp_steals'].max()
-        cbb_stats_df['total_team_blocks'] = cbb_stats_df['team_blocks']/cbb_stats_df['team_blocks'].max()
-        cbb_stats_df['total_opp_blocks'] = cbb_stats_df['opp_blocks']/cbb_stats_df['opp_blocks'].max()
-        cbb_stats_df['total_team_turnovers'] = cbb_stats_df['team_turnovers'] /cbb_stats_df['team_turnovers'] .max()
-        cbb_stats_df['total_opp_turnovers'] = cbb_stats_df['opp_turnovers']/cbb_stats_df['opp_turnovers'].max()
-        cbb_stats_df['total_team_fouls'] = cbb_stats_df['team_fouls']/cbb_stats_df['team_fouls'].max()
-        cbb_stats_df['total_opp_fouls'] = cbb_stats_df['opp_fouls']/cbb_stats_df['opp_fouls'].max()
-        cbb_stats_df['total_team_code'] = cbb_stats_df['team_code']/cbb_stats_df['team_code'].max()
-        cbb_stats_df['total_opp_code'] = cbb_stats_df['opp_code']/cbb_stats_df['opp_code'].max()
-        cbb_stats_df['total_team_rank'] = cbb_stats_df['team_rank']/cbb_stats_df['team_rank'].max()
-        cbb_stats_df['total_opp_rank'] = cbb_stats_df['opp_rank']/cbb_stats_df['opp_rank'].max()
+        # Summarize Data Across a Season
+        cbb_stats_df.sort_values(by=['season','date'], ascending=True, inplace=True)
+        cbb_stats_df['game_counter'] = 1
+
+        
+        cbb_stats_df['total_team_games'] = cbb_stats_df.groupby(['season','team'])['games'].cumsum()
+        cbb_stats_df['total_opp_games'] = cbb_stats_df.groupby(['season','opp'])['games'].cumsum()
+        cbb_stats_df['total_team_points'] = cbb_stats_df.groupby(['season','team'])['team_points'].cumsum()
+        cbb_stats_df['total_opp_points'] = cbb_stats_df.groupby(['season','opp'])['opp_points'].cumsum()
+        cbb_stats_df['total_team_fg_att'] = cbb_stats_df.groupby(['season','team'])['team_field_goal_att'].cumsum()
+        cbb_stats_df['total_opp_fg_att'] = cbb_stats_df.groupby(['season','opp'])['opp_field_goal_att'].cumsum()
+        cbb_stats_df['total_team_fg_made'] = cbb_stats_df.groupby(['season','team'])['team_field_goal_made'].cumsum()
+        cbb_stats_df['total_opp_fg_made'] = cbb_stats_df.groupby(['season','opp'])['opp_field_goal_made'].cumsum()
+        cbb_stats_df['total_team_fg_pct'] = cbb_stats_df.groupby(['season','team'])['team_field_goal_pct'].cumsum()/cbb_stats_df.groupby(['season','team'])['game_counter'].cumsum() * 100
+        cbb_stats_df['total_opp_fg_pct'] = cbb_stats_df.groupby(['season','opp'])['opp_field_goal_pct'].cumsum()/cbb_stats_df.groupby(['season','opp'])['game_counter'].cumsum() * 100
+        cbb_stats_df['total_team_3pt_att'] = cbb_stats_df.groupby(['season','team'])['team_3pt_att'].cumsum()
+        cbb_stats_df['total_opp_3pt_att'] = cbb_stats_df.groupby(['season','opp'])['opp_3pt_att'].cumsum()
+        cbb_stats_df['total_team_3pt_made'] = cbb_stats_df.groupby(['season','team'])['team_3pt_made'].cumsum()
+        cbb_stats_df['total_opp_3pt_made'] = cbb_stats_df.groupby(['season','opp'])['opp_3pt_made'].cumsum()
+        cbb_stats_df['total_team_3pt_pct'] = cbb_stats_df.groupby(['season','team'])['team_3pt_pct'].cumsum()/cbb_stats_df.groupby(['season','team'])['game_counter'].cumsum() * 100
+        cbb_stats_df['total_opp_3pt_pct'] = cbb_stats_df.groupby(['season','opp'])['opp_3pt_pct'].cumsum()/cbb_stats_df.groupby(['season','opp'])['game_counter'].cumsum() * 100
+        cbb_stats_df['total_team_ft_att'] = cbb_stats_df.groupby(['season','team'])['team_free_throw_att'].cumsum()
+        cbb_stats_df['total_opp_ft_att'] = cbb_stats_df.groupby(['season','opp'])['opp_free_throw_att'].cumsum()
+        cbb_stats_df['total_team_ft_made'] = cbb_stats_df.groupby(['season','team'])['team_free_throw_made'].cumsum()
+        cbb_stats_df['total_opp_ft_made'] = cbb_stats_df.groupby(['season','opp'])['opp_free_throw_made'].cumsum()
+        cbb_stats_df['total_team_ft_pct'] = cbb_stats_df.groupby(['season','team'])['team_free_throw_pct'].cumsum()/cbb_stats_df.groupby(['season','team'])['game_counter'].cumsum() * 100
+        cbb_stats_df['total_opp_ft_pct'] = cbb_stats_df.groupby(['season','opp'])['opp_free_throw_pct'].cumsum()/cbb_stats_df.groupby(['season','opp'])['game_counter'].cumsum() * 100
+        cbb_stats_df['total_team_rebounds'] = cbb_stats_df.groupby(['season','team'])['team_rebounds'].cumsum()
+        cbb_stats_df['total_opp_rebounds'] = cbb_stats_df.groupby(['season','opp'])['opp_rebounds'].cumsum()
+        cbb_stats_df['total_team_assists'] = cbb_stats_df.groupby(['season','team'])['team_assists'].cumsum()
+        cbb_stats_df['total_opp_assists'] = cbb_stats_df.groupby(['season','opp'])['opp_assists'].cumsum()
+        cbb_stats_df['total_team_steals'] = cbb_stats_df.groupby(['season','team'])['team_steals'].cumsum()
+        cbb_stats_df['total_opp_steals'] = cbb_stats_df.groupby(['season','opp'])['opp_steals'].cumsum()
+        cbb_stats_df['total_team_blocks'] = cbb_stats_df.groupby(['season','team'])['team_blocks'].cumsum()
+        cbb_stats_df['total_opp_blocks'] = cbb_stats_df.groupby(['season','opp'])['opp_blocks'].cumsum()
+        cbb_stats_df['total_team_turnovers'] = cbb_stats_df.groupby(['season','team'])['team_turnovers'].cumsum()
+        cbb_stats_df['total_opp_turnovers'] = cbb_stats_df.groupby(['season','opp'])['opp_turnovers'].cumsum()
+        cbb_stats_df['total_team_fouls'] = cbb_stats_df.groupby(['season','team'])['team_fouls'].cumsum()
+        cbb_stats_df['total_opp_fouls'] = cbb_stats_df.groupby(['season','opp'])['opp_fouls'].cumsum()
+        cbb_stats_df['total_team_pace'] = cbb_stats_df.groupby(['season','team'])['team_pace'].cumsum()/cbb_stats_df.groupby(['season','team'])['game_counter'].cumsum() * 100
+        cbb_stats_df['total_opp_pace'] = cbb_stats_df.groupby(['season','opp'])['opp_pace'].cumsum()/cbb_stats_df.groupby(['season','opp'])['game_counter'].cumsum() * 100
+        
+        cbb_stats_df['team_ppg'] = cbb_stats_df['total_team_points']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_ppg'] = cbb_stats_df['total_opp_points']/cbb_stats_df['total_opp_games']
+        cbb_stats_df['team_fg_att_pg'] = cbb_stats_df['total_team_fg_att']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_fg_att_pg'] = cbb_stats_df['total_opp_fg_att']/cbb_stats_df['total_opp_games']
+        cbb_stats_df['team_fg_made_pg'] = cbb_stats_df['total_team_fg_made']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_fg_made_pg'] = cbb_stats_df['total_opp_fg_made']/cbb_stats_df['total_opp_games']
+        cbb_stats_df['team_3pt_att_pg'] = cbb_stats_df['total_team_3pt_att']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_3pt_att_pg'] = cbb_stats_df['total_opp_3pt_att']/cbb_stats_df['total_opp_games']
+        cbb_stats_df['team_3pt_made_pg'] = cbb_stats_df['total_team_3pt_made']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_3pt_made_pg'] = cbb_stats_df['total_opp_3pt_made']/cbb_stats_df['total_opp_games']
+        cbb_stats_df['team_ft_att_pg'] = cbb_stats_df['total_team_ft_att']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_ft_att_pg'] = cbb_stats_df['total_opp_ft_att']/cbb_stats_df['total_opp_games']
+        cbb_stats_df['team_ft_made_pg'] = cbb_stats_df['total_team_ft_made']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_ft_made_pg'] = cbb_stats_df['total_opp_ft_made']/cbb_stats_df['total_opp_games']
+        cbb_stats_df['team_rebounds_pg'] = cbb_stats_df['total_team_rebounds']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_rebounds_pg'] = cbb_stats_df['total_opp_rebounds']/cbb_stats_df['total_opp_games']
+        cbb_stats_df['team_assists_pg'] = cbb_stats_df['total_team_assists']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_assists_pg'] = cbb_stats_df['total_opp_assists']/cbb_stats_df['total_opp_games']
+        cbb_stats_df['team_steals_pg'] = cbb_stats_df['total_team_steals']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_steals_pg'] = cbb_stats_df['total_opp_steals']/cbb_stats_df['total_opp_games']
+        cbb_stats_df['team_blocks_pg'] = cbb_stats_df['total_team_blocks']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_blocks_pg'] = cbb_stats_df['total_opp_blocks']/cbb_stats_df['total_opp_games']
+        cbb_stats_df['team_turnovers_pg'] = cbb_stats_df['total_team_turnovers']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_turnovers_pg'] = cbb_stats_df['total_opp_turnovers']/cbb_stats_df['total_opp_games']
+        cbb_stats_df['team_fouls_pg'] = cbb_stats_df['total_team_fouls']/cbb_stats_df['total_team_games']
+        cbb_stats_df['opp_fouls_pg'] = cbb_stats_df['total_opp_fouls']/cbb_stats_df['total_opp_games']
+        cbb_stats_df.to_excel('cbb_raw_data.xlsx')
+
+        # Organize and Normalize Data
+        cbb_norm_df = pd.read_excel('cbb_raw_data.xlsx')
+        cbb_norm_df.drop(columns=['Unnamed: 0'], inplace=True)
+
+        cbb_norm_df['team_code'] = cbb_norm_df['team'].astype("category").cat.codes
+        cbb_norm_df['opp_code'] = cbb_norm_df['opp'].astype("category").cat.codes
+        cbb_norm_df['team_rank'] = cbb_norm_df['team_rank'].fillna(50)
+        cbb_norm_df['opp_rank'] = cbb_norm_df['opp_rank'].fillna(50)
+
+        cbb_stats_df['team_code'] = cbb_stats_df['team_code']/cbb_stats_df['team_code'].max()
+        cbb_stats_df['opp_code'] = cbb_stats_df['opp_code']/cbb_stats_df['opp_code'].max()
+        cbb_stats_df['team_rank'] = cbb_stats_df['team_rank']/cbb_stats_df['team_rank'].max()
+        cbb_stats_df['opp_rank'] = cbb_stats_df['opp_rank']/cbb_stats_df['opp_rank'].max()
         cbb_stats_df['total_team_pace'] = cbb_stats_df['team_pace']/cbb_stats_df['team_pace'].max()
         cbb_stats_df['total_opp_pace'] = cbb_stats_df['opp_pace']/cbb_stats_df['opp_pace'].max()
 
-        cbb_stats_df.to_excel('cbb_norm_data.xlsx')
-
-
+        '''
+        cbb_norm_df['total_team_points'] = cbb_norm_df['total_team_points']/cbb_norm_df['total_team_points'].max()
+        cbb_norm_df['total_opp_points'] = cbb_norm_df['total_opp_points']/cbb_norm_df['total_opp_points'].max()
+        cbb_norm_df['total_team_fg_att'] = cbb_norm_df['total_team_fg_att']/cbb_norm_df['total_team_fg_att'].max()
+        cbb_norm_df['total_opp_fg_att'] = cbb_norm_df['total_opp_fg_att']/cbb_norm_df['total_opp_fg_att'].max()
+        cbb_norm_df['total_team_fg_made'] = cbb_norm_df['total_team_fg_made']/cbb_norm_df['total_team_fg_made'].max() 
+        cbb_norm_df['total_opp_fg_made'] = cbb_norm_df['total_opp_fg_made']/cbb_norm_df['total_opp_fg_made'].max()
+        cbb_norm_df['total_team_3pt_att'] = cbb_norm_df['total_team_3pt_att']/cbb_norm_df['total_team_3pt_att'].max()
+        cbb_norm_df['total_opp_3pt_att'] = cbb_norm_df['total_opp_3pt_att']/cbb_norm_df['total_opp_3pt_att'].max()
+        cbb_norm_df['total_team_3pt_made'] = cbb_norm_df['total_team_3pt_made']/cbb_norm_df['total_team_3pt_made'].max()
+        cbb_norm_df['total_opp_3pt_made'] = cbb_norm_df['total_opp_3pt_made']/cbb_norm_df['total_opp_3pt_made'].max()
+        cbb_norm_df['total_team_ft_att'] = cbb_norm_df['total_team_ft_att']/cbb_norm_df['total_team_ft_att'].max()
+        cbb_norm_df['total_opp_ft_att'] = cbb_norm_df['total_opp_ft_att']/cbb_norm_df['total_opp_ft_att'].max()
+        cbb_norm_df['total_team_ft_made'] = cbb_norm_df['total_team_ft_made']/cbb_norm_df['total_team_ft_made'].max()
+        cbb_norm_df['total_opp_ft_made'] = cbb_norm_df['total_opp_ft_made']/cbb_norm_df['total_opp_ft_made'].max()
+        cbb_norm_df['total_team_rebounds'] = cbb_norm_df['total_team_rebounds']/cbb_norm_df['total_team_rebounds'].max()
+        cbb_norm_df['total_opp_rebounds'] = cbb_norm_df['total_opp_rebounds']/cbb_norm_df['total_opp_rebounds'].max()
+        cbb_norm_df['total_team_assists'] = cbb_norm_df['total_team_assists']/cbb_norm_df['total_team_assists'].max()
+        cbb_norm_df['total_opp_assists'] = cbb_norm_df['total_opp_assists']/cbb_norm_df['total_opp_assists'].max()
+        cbb_norm_df['total_team_steals'] = cbb_norm_df['total_team_steals']/cbb_norm_df['total_team_steals'].max()
+        cbb_norm_df['total_opp_steals'] = cbb_norm_df['total_opp_steals']/cbb_norm_df['total_opp_steals'].max()
+        cbb_norm_df['total_team_blocks'] = cbb_norm_df['total_team_blocks']/cbb_norm_df['total_team_blocks'].max()
+        cbb_norm_df['total_opp_blocks'] = cbb_norm_df['total_opp_blocks']/cbb_norm_df['total_opp_blocks'].max()
+        cbb_norm_df['total_team_turnovers'] = cbb_norm_df['total_team_turnovers'] /cbb_norm_df['total_team_turnovers'].max()
+        cbb_norm_df['total_opp_turnovers'] = cbb_norm_df['total_opp_turnovers']/cbb_norm_df['total_opp_turnovers'].max()
+        cbb_norm_df['total_team_fouls'] = cbb_norm_df['total_team_fouls']/cbb_norm_df['total_team_fouls'].max()
+        cbb_norm_df['total_opp_fouls'] = cbb_norm_df['total_opp_fouls']/cbb_norm_df['total_opp_fouls'].max()
+        cbb_norm_df['team_code'] = cbb_norm_df['team_code']/cbb_norm_df['team_code'].max()
+        cbb_norm_df['opp_code'] = cbb_norm_df['opp_code']/cbb_norm_df['opp_code'].max()
+        cbb_norm_df['team_rank'] = cbb_norm_df['team_rank']/cbb_norm_df['team_rank'].max()
+        cbb_norm_df['opp_rank'] = cbb_norm_df['opp_rank']/cbb_norm_df['opp_rank'].max()
+        cbb_norm_df['total_team_pace'] = cbb_norm_df['total_team_pace']/cbb_norm_df['total_team_pace'].max()
+        cbb_norm_df['total_opp_pace'] = cbb_norm_df['total_opp_pace']/cbb_norm_df['total_opp_pace'].max()
+        '''
+        cbb_norm_df.to_excel('cbb_norm_data.xlsx')
 
         return "Update Complete"
-    
-        '''
-        # Retrain Model on New Data
-        # Define Metrics for Input Variables
-        X = updated_norm_df[['rank', 'opponent_rank', 'off_success_rate','def_success_rate', 'def_per_game_ppa',
-                        'off_per_game_ppa', 'passing_yards_per_game', 'rushing_yards_per_game', 'TDs_per_game', 'time_of_possession_per_game',
-                        'off_turnovers_per_game', 'penalty_yards_per_game', 'sacks_per_game', 'def_interceptions_per_game', 'team_code', 'opp_code',
-                            'opp_off_success_rate','opp_def_success_rate', 'opp_def_per_game_ppa','opp_off_per_game_ppa', 'opp_passing_yards_per_game', 
-                            'opp_rushing_yards_per_game', 'opp_TDs_per_game', 'opp_time_of_possession_per_game', 'opp_off_turnovers_per_game', 
-                            'opp_penalty_yards_per_game', 'opp_sacks_per_game', 'opp_def_interceptions_per_game']]
-        X = X.reset_index(drop=True)
-
-        # Split Data for Home and Away Models
-        X_team = X[['rank', 'opponent_rank', 'off_success_rate', 'off_per_game_ppa', 'passing_yards_per_game', 'rushing_yards_per_game', 'TDs_per_game', 
-                    'time_of_possession_per_game', 'off_turnovers_per_game', 'penalty_yards_per_game', 'team_code', 'opp_code',
-                    'opp_def_success_rate', 'opp_def_per_game_ppa', 'opp_time_of_possession_per_game','opp_penalty_yards_per_game', 
-                    'opp_sacks_per_game', 'opp_def_interceptions_per_game']]
-        X_opp = X[['rank', 'opponent_rank', 'def_success_rate', 'def_per_game_ppa','time_of_possession_per_game','penalty_yards_per_game', 'sacks_per_game',
-                    'def_interceptions_per_game', 'team_code', 'opp_code','opp_off_success_rate','opp_off_per_game_ppa', 'opp_passing_yards_per_game', 
-                    'opp_rushing_yards_per_game', 'opp_TDs_per_game', 'opp_time_of_possession_per_game', 'opp_off_turnovers_per_game', 
-                    'opp_penalty_yards_per_game']]
-
-        y_team = updated_norm_df['team_points']
-        y_opp = updated_norm_df['opponent_points']
-
-        # Home Linear Regression Model
-        X_train, X_test, y_train, y_test = train_test_split(X_team, y_team, test_size = 0.20)
-
-        regr_home = LinearRegression()
-        regr_home.fit(X_train, y_train.values.ravel())
-        print(regr_home.score(X_test, y_test))
-
-        # Away Linear Regression model
-        X_train, X_test, y_train, y_test = train_test_split(X_opp, y_opp, test_size = 0.20)
-
-        regr_away = LinearRegression()
-        regr_away.fit(X_train, y_train.values.ravel())
-        print(regr_away.score(X_test, y_test))
-
-        # Save Models
-        joblib.dump(regr_home, os.path.join(model_path,home_model_file))
-        joblib.dump(regr_away, os.path.join(model_path,away_model_file))
-
-        return "Update Complete"
-        '''
     
     def retrain_model(self, path, start_year, end_year):
         
@@ -714,26 +791,33 @@ class ScorePredictorNCAAB:
         model_file = "CBB_Score_Model.pkl"
 
         data_df = pd.read_excel(f"{path}/{'cbb_norm_data.xlsx'}", index_col=0)
-        data_df = data_df.dropna(axis = 0).reset_index()
         data_df = data_df[data_df['season'] >= int(start_year)]
         data_df = data_df[data_df['season'] <= int(end_year)]
 
        # Define Metrics for Input Variables
-        X = data_df[['total_team_games', 'total_opp_games', 'total_team_points', 'total_opp_points', 'total_team_fg_att', 'total_opp_fg_att', 'total_team_fg_made', 'total_opp_fg_made', 'total_team_fg_pct', 'total_opp_fg_pct', 
-                        'total_team_3pt_att', 'total_opp_3pt_att', 'total_team_3pt_made', 'total_opp_3pt_made', 'total_team_3pt_pct', 'total_opp_3pt_pct', 'total_team_ft_att', 'total_opp_ft_att',
-                        'total_team_ft_made', 'total_opp_ft_made', 'total_team_ft_pct', 'total_opp_ft_pct', 'total_team_rebounds', 'total_opp_rebounds', 'total_team_assists', 'total_opp_assists',
-                        'total_team_steals', 'total_opp_steals', 'total_team_blocks', 'total_opp_blocks', 'total_team_turnovers', 'total_opp_turnovers', 'total_team_fouls', 'total_opp_fouls',
-                        'total_team_pace', 'total_opp_pace', 'team_code', 'opp_code']]
+        X = data_df[['team_ppg', 'opp_ppg', 'team_fg_att_pg', 'opp_fg_att_pg', 'team_fg_made_pg', 'opp_fg_made_pg', 'total_team_fg_pct', 'total_opp_fg_pct', 
+                        'team_3pt_att_pg', 'opp_3pt_att_pg', 'team_3pt_made_pg', 'opp_3pt_made_pg', 'total_team_3pt_pct', 'total_opp_3pt_pct', 'team_ft_att_pg', 'opp_ft_att_pg',
+                        'team_ft_made_pg', 'opp_ft_made_pg', 'total_team_ft_pct', 'total_opp_ft_pct', 'team_rebounds_pg', 'opp_rebounds_pg', 'team_assists_pg', 'opp_assists_pg',
+                        'team_steals_pg', 'opp_steals_pg', 'team_blocks_pg', 'opp_blocks_pg', 'team_turnovers_pg', 'opp_turnovers_pg', 'team_fouls_pg', 'opp_fouls_pg',
+                        ]]
+
+        Y = data_df[['team_points','opp_points', 'team_ppg', 'opp_ppg', 'team_fg_att_pg', 'opp_fg_att_pg', 'team_fg_made_pg', 'opp_fg_made_pg', 'total_team_fg_pct', 'total_opp_fg_pct', 
+                        'team_3pt_att_pg', 'opp_3pt_att_pg', 'team_3pt_made_pg', 'opp_3pt_made_pg', 'total_team_3pt_pct', 'total_opp_3pt_pct', 'team_ft_att_pg', 'opp_ft_att_pg',
+                        'team_ft_made_pg', 'opp_ft_made_pg', 'total_team_ft_pct', 'total_opp_ft_pct', 'team_rebounds_pg', 'opp_rebounds_pg', 'team_assists_pg', 'opp_assists_pg',
+                        'team_steals_pg', 'opp_steals_pg', 'team_blocks_pg', 'opp_blocks_pg', 'team_turnovers_pg', 'opp_turnovers_pg', 'team_fouls_pg', 'opp_fouls_pg',
+                         'team_code', 'opp_code', 'total_team_pace', 'total_opp_pace']]
+        X = X.dropna(axis = 0)
         X = X.reset_index(drop=True)
 
-        y_team = data_df['team_points']
+        Y = Y.dropna(axis=0)
+        Y = Y.reset_index(drop=True)
+        y_team = Y['team_points']
 
         # Linear Regression Model
         X_train, X_test, y_train, y_test = train_test_split(X, y_team, test_size = 0.20)
 
         regr = LinearRegression()
         regr.fit(X_train, y_train.values.ravel())
-        print(regr.score(X_test, y_test))
 
         # Save Models
         joblib.dump(regr, f"{model_path}/{model_file}")
